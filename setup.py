@@ -1,5 +1,7 @@
 from setuptools import setup, find_packages
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
 
 setup(
     name="LQTMomentMag",
@@ -7,7 +9,11 @@ setup(
     author= "Arham Zakki Edelo",
     author_email= "edelo.arham@gmail.com",
     description= "Calculate seismic moment magnitude in full LQT energy for very local earthquake case",
+    long_description= long_description,
+    long_description_content_type="text/markdown",
     url = "https://github.com/bgjx/LQTMomentMag",
+    license="MIT",
+    keywords='Seismology, Moment Magnitude, Spectral Fitting, LQT Component',
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
