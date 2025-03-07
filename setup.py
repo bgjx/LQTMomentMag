@@ -2,13 +2,26 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name= "LQTMomentMag",
+    name="LQTMomentMag",
+    version="1.0.0",
     author= "Arham Zakki Edelo",
     author_email= "edelo.arham@gmail.com",
     description= "Calculate seismic moment magnitude in full LQT energy for very local earthquake case",
-    url = ""
-
-
-
-
+    url = "https://github.com/bgjx/LQTMomentMag",
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
+    install_requires=[
+        "numpy>=1.23.0",
+        "pandas>=1.5.0",
+        "matplotlib>=3.6.0",
+        "scipy>=1.9.0",
+        "obspy>=1.4.0",
+        "tqdm>=4.64.0"
+    ],
+    entry_points={
+        "console_scripts": [
+            "mwcalc = LQTMomentMag.main:main",
+        ]
+    },
+    python_requires = ">=3.8"
 )
