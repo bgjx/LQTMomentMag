@@ -38,7 +38,7 @@ class SeismicConfig:
         config  = ConfigParser()
         if config.read(config_file):
             self.WATER_LEVEL = config.getint("Seismic", "water_level", fallback=self.WATER_LEVEL)
-            self.PRE_FILTER = [float(x) for x in config.get("Seismic", "pre_filter", fallback="2,5,55,60").split(",")]
+            self.PRE_FILTER = [float(x) for x in config.getint("Seismic", "pre_filter", fallback="2,5,55,60").split(",")]
             self.F_MIN = config.getint("Seismic", "f_min", fallback=self.F_MIN)
             self.F_MAX = config.getint("Seismic", "f_max", fallback=self.F_MAX)
             self.PADDING_BEFORE_ARRIVAL = config.getint("Seismic", "padding_before_arrival", fallback=self.PADDING_BEFORE_ARRIVAL)
@@ -49,4 +49,7 @@ class SeismicConfig:
             self.FREE_SURFACE_FACTOR = config.getint("Seismic", "free_surface_factor", fallback=self.FREE_SURFACE_FACTOR)
             self.K_P = config.getint("Seismic", "k_p", fallback=self.K_P)
             self.K_S = config.getint("Seismic", "k_s", fallback=self.K_S)
-            self.LAYER_BOUNDARIES = config.getint("Seismic", "layer_boundaries", fallback=self.LAYER_BOUNDARIES)
+            self.LAYER_BOUNDARIES = [[float(x) for x in layer.split(",")] for layer in config.getint("Seismic", "layer_boundaries", fallback= "-3.00,-1.90; -1.90,-0.59; -0.59, 0.22; 0.22, 2.50; 2.50, 7.00; 7.00,9.00;  9.00,15.00 ; 15.00,33.00; 33.00,9999").split(";")]
+            self.VELOCITY_VP = [float(x) for x in config.getint("Seismic", "velocity_vp", fallback="2.68, 2.99, 3.95, 4.50, 4.99, 5.60, 5.80, 6.40, 8.00").split(",")]
+            self.VELOCITY_VS = [float(x) for x in config.getint("Seismic", "velocity_vs", fallback="1.60, 1.79, 2.37, 2.69, 2.99, 3.35, 3.47, 3.83, 4.79").split(",")]
+            self.DENSITY = [float(x) for x in config.getint("Seismic", "density", fallback="2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700").split(",")]
