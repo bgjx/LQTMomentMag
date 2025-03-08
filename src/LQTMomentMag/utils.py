@@ -1,9 +1,12 @@
 import os, glob, sys, warnings, logging
 from typing import Tuple, Callable, Optional
-import numpy as np
-from scipy import signal
-from obspy import UTCDateTime, Stream, Trace, read, read_inventory
 from pathlib import Path
+
+import numpy as np
+from obspy import UTCDateTime, Stream, Trace, read, read_inventory
+
+from .config import CONFIG
+
 
 warnings.filterwarnings("ignore")
 
@@ -14,7 +17,6 @@ logging.basicConfig(
     datefmt = "%Y-%m-%d %H:%M:%S"
 )
 logger = logging.getLogger("mw_calculator")
-
 
 
 def get_valid_input(prompt: str, validate_func: callable, error_msg: str) -> int:
@@ -44,6 +46,32 @@ def get_valid_input(prompt: str, validate_func: callable, error_msg: str) -> int
             sys.exit("Interrupted by user")
 
 
+def get_user_input() -> Tuple[int, int, str, bool]:
+    """
+    Get user inputs for processing parameters.
+    
+    Returns:
+        Tuple[int, int, str, bool]: Start ID, end ID, output name, and whether to generate figures.
+    """
+    
+    id_start    = get_valid_input("Event ID to start: ", lambda x: int(x) >= 0, "Please input non-negative integer")
+    id_end      = get_valid_input("Event ID to end: ", lambda x: int(x) >= id_start, f"Please input an integer >= {id_start}")
+    
+    while True:
+        mw_output   = input("Result file name? (ex. mw_out, press ENTER for default): ").strip() or "mw_output"
+        if not any(c in mw_output for c in r'<>:"/\\|?*'):
+            break
+        print("Enter a valid filename without special characters")
+        
+    while True:
+        figure_statement = input("Do you want to produce the spectral fitting figures [yes/no]?: ").strip().lower()
+        if figure_statement in ['yes', 'no']:
+            figure_statement = (figure_statement == 'yes')
+            break
+        print("Pleases enter 'yes' or 'no'")
+        
+    return id_start, id_end, mw_output, figure_statement
+
 
 def read_waveforms(path: Path, event_id: int, station:str) -> Stream:
     """
@@ -58,7 +86,8 @@ def read_waveforms(path: Path, event_id: int, station:str) -> Stream:
     """
     
     stream = Stream()
-    for w in glob.glob(os.path.join(path.joinpath(f"{event_id}"), f"*{station}*.mseed"), recursive = True):
+    pattern = os.path.join(path/f"{event_id}", f"*{station}*.mseed")
+    for w in glob.glob(pattern, recursive = True):
         try:
             stread = read(w)
             stream += stread
@@ -69,13 +98,11 @@ def read_waveforms(path: Path, event_id: int, station:str) -> Stream:
     return stream
 
 
-
 def instrument_remove (
     stream: Stream, 
     calibration_path: Path, 
     figure_path: Optional[str] = None, 
-    figure_statement: bool = False,
-    config: "SeismicConfig" = None,
+    figure_statement: bool = False
     ) -> Stream:
     """
     Removes instrument response from a Stream of seismic traces using calibration files.
@@ -95,7 +122,7 @@ def instrument_remove (
         try:
             # Construct the calibration file
             station, component = trace.stats.station, trace.stats.component
-            inventory_path = calibration_path.joinpath(f"RESP.RD.{station}..BH{component}")
+            inventory_path = calibration_path / f"RESP.RD.{station}..BH{component}"
             
             # Read the calibration file
             inventory = read_inventory(inventory_path, format='RESP')
@@ -108,8 +135,8 @@ def instrument_remove (
             # Remove instrument response
             displacement_trace = trace.remove_response(
                                     inventory = inventory,
-                                    pre_filt = PRE_FILTER,
-                                    water_level = WATER_LEVEL,
+                                    pre_filt = CONFIG.PRE_FILTER,
+                                    water_level = CONFIG.WATER_LEVEL,
                                     output = 'DISP',
                                     zero_mean = True,
                                     taper = True,
@@ -128,3 +155,24 @@ def instrument_remove (
             continue
             
     return displacement_stream
+
+
+def trace_snr(data: np.ndarray, noise: np.ndarray) -> float:
+    """
+    Computes the Signal-to-Noise Ratio (SNR) based on the RMS (Root Mean Square) of the signal and noise.
+
+    Args:
+        data (np.ndarray): Array of signal data.
+        noise (np.ndarray): Array of noise data.
+
+    Returns:
+        float: The Signal-to-Noise Ratio (SNR), calculated as the ratio of the RMS of the signal to the RMS of the noise.
+    """
+    
+    # Compute RMS of the signal
+    data_rms = np.sqrt(np.mean(np.square(data)))
+    
+    # Compute RMS of the noise
+    noise_rms = np.sqrt(np.mean(np.square(noise)))
+    
+    return data_rms / noise_rms
