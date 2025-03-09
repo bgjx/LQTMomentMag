@@ -19,41 +19,39 @@ logger = logging.getLogger("mw_calculator")
 
 
 def main():
-    # path object containing all necessary paths
-    paths = {
-        "hypo_input": Path(r"E:\BACK UP KERJA\SUPREME ENERGY\SERD\SERD Catalog\hypo_relocated.xlsx"),
-        "pick_input": Path(r"E:\BACK UP KERJA\SUPREME ENERGY\SERD\PICKING SERD\2024\all combined\all_serd_2024.xlsx"),
-        "station_input": Path(r"E:\BACK UP KERJA\SUPREME ENERGY\SERD\SERD Station\SERD_station.xlsx"),
-        "wave_dir": Path(r"E:\BACK UP KERJA\SUPREME ENERGY\SERD\DATA TRIMMING\combined"),
-        "cal_dir": Path(r"E:\BACK UP KERJA\SUPREME ENERGY\SERD\calibration file"),
-        "mw_result_dir": Path(r"E:\BACK UP KERJA\SUPREME ENERGY\SERD\Magnitude Calculation\MW"),
-        "fig_output_dir": Path(r"E:\BACK UP KERJA\SUPREME ENERGY\SERD\Magnitude Calculation\MW\fig_out")
-    }
+    """  Runs the moment magnitude calculation form command line or interactive input  """
+    parser = argparse.ArgumentParser(description="Calculate moment magnitude in full LQT component")
+    parser.add_argument("--wave-dir", type=Path, default="data/waveforms", help="Path to wavefrom directory")
+    parser.add_argument("--cal-dir", type=Path, default="data/calibration", help="Path to the calibration directory")
+    parser.add_argument("--fig-dir", type=Path, default="figures", help="Path to save figures")
+    parser.add_argument("--hypo-file", type=Path, default="data/hypocenter/hypo_sample.xlsx", help="Hypocenter data file")
+    parser.add_argument("--pick-file", type=Path, default="data/picks/picks_sample.xlsx", help="Arrival picking data file")
+    parser.add_argument("--station-file", type=Path, default="data/stations/stations_sample.xlsx", help="Station data file")
+    parser.add_argument("--output-dir", type=Path, default="results", help="Output directory for results")
+    args = parser.parse_args()
 
-    # cek input integrity
-    for path_name, path_dir in paths.items():
-        if "input" in path_name and not path_dir.exists():
-            raise FileNotFoundError(f"{path_name} not found: {path_dir}")
-        if path_name in ["wave_dir", "cal_dir"] and not path_dir.is_dir():
-            raise NotADirectoryError(f"{path_name} must be a directory: {path_dir}")
-        if path_name in ["mw_result_dir", "fig_output_dir"]:
-            path_dir.mkdir(parents=True, exist_ok=True)
+    for path in [args.wave_dir, args.cal_dir, args.hypo_file, args.pick_file, args.station_file]:
+        if not path.exist():
+            raise FileNotFoundError(f"Path not found: {path}")
+    
+    args.fig_dir.mkdir(parents=True, exist_ok=True)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
             
     # preload all the excel file
-    try:
-        hypo_df = pd.read_excel(paths["hypo_input"], index_col=None)
-        pick_df = pd.read_excel(paths["pick_input"], index_col=None)
-        station_df = pd.read_excel(paths["station_input"], index_col=None)
-    except Exception as e:
-        raise FileNotFoundError(f"Failed to load Excel files: {e}")
+    hypo_df = pd.read_excel(args.hypo_file, index_col=None)
+    pick_df = pd.read_excel(args.pick_file, index_col=None)
+    station_df = pd.read_excel(args.station_file, index_col=None)
+
+    if any(False for data in [hypo_df, pick_df, station_df] if data.empty):
+        logger.warning(f"Cannot process empty dataframes, please check your data again.")
         
     # Call the function to start calculating moment magnitude
-    mw_result_df, mw_fitting_df, output_name = start_calculate(paths["wave_dir"], paths["cal_dir"], paths["fig_output_dir"], 
+    mw_result_df, mw_fitting_df, output_name = start_calculate(args.wave_dir, args.cal_dir, args.fig_dir, 
                                                                hypo_df, pick_df, station_df)
 
     # save and set dataframe index
-    mw_result_df.to_excel(paths["mw_result_dir"].joinpath(f"{output_name}_result.xlsx"), index = False)
-    mw_fitting_df.to_excel(paths["mw_result_dir"].joinpath(f"{output_name}_fitting_result.xlsx"), index = False)
+    mw_result_df.to_excel(args.output_dir / f"{output_name}_result.xlsx", index = False)
+    mw_fitting_df.to_excel(args.output_dir/ f"{output_name}_fitting_result.xlsx", index = False)
     
     return None
 
