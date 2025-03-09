@@ -86,7 +86,6 @@ class Config:
             self.magnitude.DENSITY = [float(x) for x in mag_section.get("density", fallback="2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700").split(",")]
 
         # load spectal config section
-
         if "Spectral" in config:
             spec_section = config["Spectral"]
             self.spectral.OMEGA_0_RANGE_MIN = spec_section.getfloat("omega_0_range_min", fallback=self.spectral.OMEGA_0_RANGE_MIN)

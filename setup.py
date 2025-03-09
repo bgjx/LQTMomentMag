@@ -26,7 +26,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "mwcalc = LQTMomentMag.main:main",
+            "LQTmwcalc = LQTMomentMag.main:main",
         ]
     },
     python_requires = ">=3.8",
