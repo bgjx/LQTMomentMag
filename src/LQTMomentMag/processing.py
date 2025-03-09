@@ -118,12 +118,12 @@ def window_trace(streams: Stream, P_arr: float, S_arr: float) -> Tuple[np.ndarra
     time_after_pick_s = 1.75 * s_p_time
     
     # Find the data index for phase windowing
-    p_phase_start_index = int(round((P_arr - trace_L.stats.starttime - CONFIG.PADDING_BEFORE_ARRIVAL)/trace_L.stats.delta), 4)
+    p_phase_start_index = int(round((P_arr - trace_L.stats.starttime - CONFIG.magnitude.PADDING_BEFORE_ARRIVAL)/trace_L.stats.delta), 4)
     p_phase_end_index = int(round((P_arr - trace_L.stats.starttimem + time_after_pick_p )/trace_L.stats.delta, 4))
-    s_phase_start_index = int(round((S_arr - trace_Q.stats.starttime - CONFIG.PADDING_BEFORE_ARRIVAL)/trace_Q.stats.delta), 4)
+    s_phase_start_index = int(round((S_arr - trace_Q.stats.starttime - CONFIG.magnitude.PADDING_BEFORE_ARRIVAL)/trace_Q.stats.delta), 4)
     s_phase_end_index = int(round((S_arr - trace_Q.stats.starttime + time_after_pick_s )/ trace_Q.stats.delta, 4))
-    noise_start_index = int(round((P_arr - trace_L.stats.starttime - CONFIG.NOISE_DURATION)/trace_L.stats.delta, 4))                             
-    noise_end_index  = int(round((P_arr - trace_L.stats.starttime - CONFIG.NOISE_PADDING )/trace_L.stats.delta, 4))
+    noise_start_index = int(round((P_arr - trace_L.stats.starttime - CONFIG.magnitude.NOISE_DURATION)/trace_L.stats.delta, 4))                             
+    noise_end_index  = int(round((P_arr - trace_L.stats.starttime - CONFIG.magnitude.NOISE_PADDING )/trace_L.stats.delta, 4))
 
     # Window the data by the index
     P_data     = trace_L.data[p_phase_start_index : p_phase_end_index + 1]
@@ -210,7 +210,7 @@ def calculate_moment_magnitude(
 
     # Find the correct velocity and DENSITY value for the spesific layer depth
     velocity_P, velocity_S, density_value = None, None, None
-    for (top, bottom), vp, vs, rho in zip(CONFIG.LAYER_BOUNDARIES, CONFIG.VELOCITY_VP, CONFIG.VELOCITY_VS, CONFIG.DENSITY):
+    for (top, bottom), vp, vs, rho in zip(CONFIG.magnitude.LAYER_BOUNDARIES, CONFIG.magnitude.VELOCITY_VP, CONFIG.magnitude.VELOCITY_VS, CONFIG.magnitude.DENSITY):
         if (top*1000)   <= hypo_depth <= (bottom*1000):
             velocity_P, velocity_S, density_value = vp*1000, vs*1000, rho
             break
@@ -259,7 +259,7 @@ def calculate_moment_magnitude(
             try:
                 hypo_coordinate = [hypo_lat, hypo_lon , -1*hypo_depth]  # depth must be in negative notation
                 station_coordinate = [station_lat, station_lon, station_elev]
-                take_off_angle, total_traveltime, incidence_angle = ref.calculate_inc_angle(hypo_coordinate, station_coordinate, CONFIG.LAYER_BOUNDARIES, CONFIG.VELOCITY_VP)
+                take_off_angle, total_traveltime, incidence_angle = ref.calculate_inc_angle(hypo_coordinate, station_coordinate, CONFIG.magnitude.LAYER_BOUNDARIES, CONFIG.magnitude.VELOCITY_VP)
             except Exception as e:
                 logger.warning(f"Event_{event_id}: An error occured when calculating incidence angle for station {station}.", exc_info=True)
             rotated_stream = rotate_component(stream_displacement, azimuth, incidence_angle) # do the component rotation from ZNE to LQT
@@ -293,9 +293,9 @@ def calculate_moment_magnitude(
 
         # Fitting the spectrum, find the optimal value of Omega_O, corner frequency and Q using systematic/stochastic algorithm available
         try:
-            fit_P  = fit.fit_spectrum_qmc(freq_P,  spec_P,  abs(float(P_pick_time - origin_time)), CONFIG.F_MIN, CONFIG.F_MAX, 3000)
-            fit_SV = fit.fit_spectrum_qmc(freq_SV, spec_SV, abs(float(S_pick_time - origin_time)), CONFIG.F_MIN, CONFIG.F_MAX, 3000)
-            fit_SH = fit.fit_spectrum_qmc(freq_SH, spec_SH, abs(float(S_pick_time - origin_time)), CONFIG.F_MIN, CONFIG.F_MAX, 3000)
+            fit_P  = fit.fit_spectrum_qmc(freq_P,  spec_P,  abs(float(P_pick_time - origin_time)), CONFIG.magnitude.F_MIN, CONFIG.magnitude.F_MAX, CONFIG.spectral.DEFAULT_N_SAMPLES)
+            fit_SV = fit.fit_spectrum_qmc(freq_SV, spec_SV, abs(float(S_pick_time - origin_time)), CONFIG.magnitude.F_MIN, CONFIG.magnitude.F_MAX, CONFIG.spectral.DEFAULT_N_SAMPLES)
+            fit_SH = fit.fit_spectrum_qmc(freq_SH, spec_SH, abs(float(S_pick_time - origin_time)), CONFIG.magnitude.F_MIN, CONFIG.magnitude.F_MAX, CONFIG.spectral.DEFAULT_N_SAMPLES)
         except Exception as e:
             logger.warning(f"Event_{event_id}: Error during spectral fitting for event {event_id}, {e}.", exc_info=True)
             continue

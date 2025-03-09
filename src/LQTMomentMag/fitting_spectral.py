@@ -28,23 +28,16 @@ References:
 """
 
 from typing import Dict, Tuple, List, Optional
+import logging
 import numpy as np
 from skopt import gp_minimize
 from skopt.space import Real , Integer
 from skopt.utils import use_named_args
 from scipy.stats import qmc
 from scipy import optimize
+from .config import CONFIG
 
-
-# globbal parameters
-OMEGA_0_RANGE_MIN = 0.1
-OMEGA_0_RANGE_MAX = 1000
-Q_RANGE_MIN = 50            # Minimum Q factor for attenuation (geothermal crust)
-Q_RANGE_MAX = 250           # Maximum Q factor (upper limit for shallow crust)
-FC_RANGE_BUFFER = 2         # Buffer below f_min for corner frequency (Hz)
-DEFAULT_N_SAMPLES = 3000    # Default number of samples for QMC and Bayesian optimization
-
-
+logger = logging.getLogger("mw_calculator")
 
 def window_band(frequencies: np.ndarray, spectrums: np.ndarray, f_min: float, f_max: float) -> Tuple[np.ndarray, np.ndarray]:
     """
@@ -103,7 +96,7 @@ def calculate_source_spectrum(
         (default n=2, y=1 per Boatwright, 1980).
     """
     
-    n, y  = 2, 1 # Boatwright model parameter.
+    n, y  = CONFIG.spectral.N_FACTOR, CONFIG.spectral.Y_FACTOR
     num = omega_0 * np.exp(-np.pi * frequencies * traveltime / q_factor)
     denom = (1 + (frequencies / corner_frequency) ** (y*n))**(1/y)
     spectrums = num/denom
@@ -144,7 +137,7 @@ def fit_spectrum_grid_search (
     
     peak_omega = spec.max()
     omega_0_range = np.linspace(peak_omega/100, peak_omega, 50)
-    q_factor_range = np.linspace(Q_RANGE_MIN, Q_RANGE_MAX, 50)
+    q_factor_range = np.linspace(CONFIG.spectral.Q_RANGE_MIN, CONFIG.spectral.Q_RANGE_MAX, 50)
     f_c_range = np.linspace(f_min, f_max, 50)
     
     # rms and error handler
@@ -170,7 +163,7 @@ def fit_spectrum_grid_search (
 
                     
     # calculate the fitted power spectral density from tuned parameter
-    x_tuned = np.linspace(max(FC_RANGE_BUFFER, f_min), f_max*1.75, 100)
+    x_tuned = np.linspace(max(CONFIG.spectral.FC_RANGE_BUFFER, f_min), f_max*1.75, 100)
     y_tuned = calculate_source_spectrum(x_tuned, omega_0_fit, q_factor_fit, f_c_fit, traveltime)
     return omega_0_fit, q_factor_fit, f_c_fit, best_rms_e, x_tuned, y_tuned
 
@@ -182,7 +175,7 @@ def fit_spectrum_qmc (
     traveltime: float,
     f_min: float,
     f_max: float,
-    n_samples: int = DEFAULT_N_SAMPLES
+    n_samples: int = CONFIG.spectral.DEFAULT_N_SAMPLES
     ) -> Tuple[float, float, float, float, np.ndarray, np.ndarray]:
     
     """
@@ -211,7 +204,7 @@ def fit_spectrum_qmc (
     # setting initial guess
     peak_omega = spec.max()
     omega_0_range = (peak_omega/100, peak_omega)
-    q_factor_range = (Q_RANGE_MIN, Q_RANGE_MAX)
+    q_factor_range = (CONFIG.spectral.Q_RANGE_MIN, CONFIG.spectral.Q_RANGE_MAX)
     f_c_range = (f_min, f_max)
     
     try:
@@ -248,7 +241,7 @@ def fit_spectrum_qmc (
             raise ValueError("QMC fitting failed to converge")
         
         # generate fitted curve
-        x_tuned = np.linspace(max(FC_RANGE_BUFFER, f_min), f_max*1.75, 100)
+        x_tuned = np.linspace(max(CONFIG.spectral.FC_RANGE_BUFFER, f_min), f_max*1.75, 100)
         y_tuned = calculate_source_spectrum(x_tuned, omega_0_fit, q_factor_fit, f_c_fit, traveltime)
         return omega_0_fit, q_factor_fit, f_c_fit, best_rms_e, x_tuned, y_tuned
     
@@ -263,7 +256,7 @@ def fit_spectrum_bayesian(
     traveltime: float,
     f_min: float,
     f_max: float,
-    n_samples: int= DEFAULT_N_SAMPLES
+    n_samples: int= CONFIG.spectral.DEFAULT_N_SAMPLES
     ) -> Tuple[float, float, float, float, np.ndarray, np.ndarray]:
     """
     Fit seismic spectrum using Bayesian optimization.
@@ -315,10 +308,10 @@ def fit_spectrum_bayesian(
             objective_func,
             dimensions = space,
             n_calls=100,
-            n_initial_points=15,
-            acq_func = 'EI',
-            acq_optimizer = "sampling",
-            n_points = 1000,
+            n_initial_points=20,
+            acq_func = 'LCB',
+            acq_optimizer = "lbfgs",
+            n_points = 500,
             random_state=42,
             noise=1e-3,
             n_jobs = -1
@@ -331,7 +324,7 @@ def fit_spectrum_bayesian(
             raise ValueError("Non-finite or infinite fitting parameters")
         
         # generate fitted curve
-        x_tuned = np.linspace(max(FC_RANGE_BUFFER, f_min), f_max*1.75, 100)
+        x_tuned = np.linspace(max(CONFIG.spectral.FC_RANGE_BUFFER, f_min), f_max*1.75, 100)
         y_tuned = calculate_source_spectrum(x_tuned, omega_0_fit, q_factor_fit, f_c_fit, traveltime)
         return omega_0_fit, q_factor_fit, f_c_fit, best_rms_e, x_tuned, y_tuned
         
