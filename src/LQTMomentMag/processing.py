@@ -465,3 +465,95 @@ def calculate_moment_magnitude(
         plt.close(fig)
     
     return results, fitting_result
+
+
+
+def start_calculate(
+    wave_path: Path,
+    calibration_path: Path,
+    figure_path: Path,
+    hypo_data: pd.DataFrame,
+    pick_data: pd.DataFrame,
+    station_data: pd.DataFrame
+    ) -> Tuple [pd.DataFrame, pd.DataFrame, str]:
+
+    """
+    Start the process of moment magnitude calculation.
+    
+    Args:
+        wave_path (Path): Path to the waveforms file.
+        calibration_path (Path) : Path to the calibration file (.RESP format).
+        figure_path (Path) : Path to the directory where the image of peak-to-peak amplitude will be stored.
+        hypo_data (pd.DataFrame): Dataframe of hypocenter catalog.
+        pick_data (pd.DataFrame): Dataframe of detail data picking.
+        station_data (pd.DataFrame) : Dataframe of stations.
+        
+    Returns:
+        Tuple [pd.Dataframe, pd.DataFrame, str]: DataFrames for magnitude results and fitting results, and the output file name.
+    """
+        
+    prompt=input('Have you change the paths? [yes/no] :').strip().lower()
+    if prompt != 'yes':
+        sys.exit("Ok, please correct the path first!")
+    else:
+        sys.stdout.write("Process the program ....\n")
+    
+    # Get the user input.
+    id_start, id_end, mw_output, figure_statement = get_user_input()
+
+    # initiate dataframe for magnitude calculation results
+    df_result   = pd.DataFrame(
+                        columns = ["ID", "Fc_avg", "Fc_std", "Src_rad_avg_(m)", "Src_rad_std_(m)", "Stress_drop_(bar)", "Mw_average", "Mw_std"] 
+                        )
+    df_fitting  = pd.DataFrame(
+                        columns = ["ID", "Station", "F_corner_P", "F_corner_SV", "F_corner_SH", "Qfactor_P", "Qfactor_SV", "Qfactor_SH", "Omega_0_P_(nms)", "Omega_0_SV_(nms)",  "Omega_0_SH_(nms)", "RMS_e_P_(nms)", "RMS_e_SV_(nms)", "RMS_e_SH_(nms)", "Moment_P_(Nm)", "Moment_S_(Nm)"] 
+                        )
+
+    failed_events=0
+    with tqdm(
+        total = id_end - id_start + 1,
+        file=sys.stderr,
+        position=0,
+        leave=True,
+        desc="Processing events",
+        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]",
+        ncols=80,
+        smoothing=0.1
+    ) as pbar:
+        for event_id in range (id_start, id_end + 1):
+            logging.info(f"  Calculate moment magnitude for event ID {event_id} ...")
+            
+            # get the dataframe 
+            hypo_data_handler   = hypo_data[hypo_data["ID"] == event_id]
+            pick_data_handler   = pick_data[pick_data["Event ID"] == event_id]
+            
+            # check empty data frame
+            if hypo_data_handler.empty or pick_data_handler.empty:
+                logger.warning(f"Event_{id}: No data for event {event_id}, skipping...")
+                failed_events+=1
+                continue
+
+            else:
+                # start calculating moment magnitude
+                try:
+                    # calculate the moment magnitude
+                    mw_results, fitting_result = calculate_moment_magnitude(wave_path, hypo_data_handler, pick_data_handler, station_data, calibration_path, event_id, figure_path, figure_statement)
+
+                    # create the dataframe from calculate_ml_magnitude results
+                    mw_magnitude_result = pd.DataFrame.from_dict(mw_results)
+                    mw_fitting_result   = pd.DataFrame.from_dict(fitting_result)
+                    
+                    # concatinate the dataframe
+                    df_result = pd.concat([df_result, mw_magnitude_result], ignore_index = True)
+                    df_fitting = pd.concat([df_fitting, mw_fitting_result], ignore_index = True)
+                
+                except Exception as e:
+                    logger.warning(f"Event_{event_id}: An error occurred during calculation for event {event_id}, {e}", exc_info=True)
+                    logger.warning(f"  There may be errors during calculation for event {event_id}, check runtime.log file")
+                    failed_events += 1
+                    continue
+                    
+            pbar.set_postfix({"Failed": failed_events})
+            pbar.update(1)
+    sys.stdout.write("Finished..., check the runtime.log file for detail of errors that migth've happened during calculation")
+    return df_result, df_fitting, mw_output
