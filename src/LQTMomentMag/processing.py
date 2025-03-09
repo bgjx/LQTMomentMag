@@ -34,10 +34,9 @@ def calculate_spectra(trace_data: np.ndarray, sampling_rate: float) -> Tuple[np.
             - frequency: Array of sample frequencies.
             - displacement_amplitude: Array of displacement amplitudes in nm·s corresponding to the frequencies.
     """
+
     if not trace_data.size:
         raise ValueError("trace_data cannot be empty.")
-    
-    # Calculate Power Spectral DENSITY using Welch's method
     freq, psd = signal.welch(trace_data, sampling_rate, nperseg = len(trace_data))
     
     return freq, np.sqrt(psd)*1e9
@@ -57,8 +56,6 @@ def rotate_component(stream: Stream, azimuth: float, incidence: float) -> Stream
     Returns:
         Stream: A Stream object containing the rotated L, Q, and T components as traces.
     """
-    
-    # Create an empty Stream object to hold the rotated traces
 
     z, n, e = [stream.select(component=comp)[0] for comp in ['Z', 'N', 'E']]
     l_data, q_data, t_data = rotate.rotate_zne_lqt(z.data, n.data, e.data)
@@ -151,7 +148,8 @@ def calculate_moment_magnitude(
             - results (Dict[str, str]): A Dictionary containing calculated moment magnitude and related metrics.
             - fitting_result (Dict[str, List]): A dictionary of detailed fitting results for each station.
     """ 
-    # object collector for fitting result
+
+    # Create object collector for fitting result
     fitting_result = {
         "ID":[],
         "Station":[],
@@ -171,7 +169,7 @@ def calculate_moment_magnitude(
         "Moment_S_(Nm)":[]
     }
 
-    # object collector for plotting
+    # Create object collector for plotting
     all_streams = []
     all_p_times = []
     all_s_times = []
@@ -186,12 +184,12 @@ def calculate_moment_magnitude(
     }
     station_names = []
 
-    # get hypocenter details
+    # Get hypocenter details
     hypo_info = hypo_df.iloc[0]
     origin_time = UTCDateTime(f"{int(hypo_info.Year):04d}-{int(hypo_info.Month):02d}-{int(hypo_info.Day):02d}T{int(hypo_info.Hour):02d}:{int(hypo_info.Minute):02d}:{float(hypo_info.T0):012.9f}") 
     hypo_lat, hypo_lon , hypo_depth =  hypo_info.Lat, hypo_info.Lon, hypo_info.Depth
 
-    # find the correct velocity and DENSITY value for the spesific layer depth
+    # Find the correct velocity and DENSITY value for the spesific layer depth
     velocity_P, velocity_S, density_value = None, None, None
     for (top, bottom), vp, vs, rho in zip(CONFIG.LAYER_BOUNDARIES, CONFIG.VELOCITY_VP, CONFIG.VELOCITY_VS, CONFIG.DENSITY):
         if (top*1000)   <= hypo_depth <= (bottom*1000):
@@ -201,18 +199,18 @@ def calculate_moment_magnitude(
             logger.warning(f"Event_{event_id}: Hypo depth not within the defined layers.")
             return {}, fitting_result
     
-    # start spectrum fitting and magnitude estimation
+    # Start spectrum fitting and magnitude estimation
     moments, corner_frequencies, source_radius = [],[],[]
     for station in pick_df.get("Station").unique():
-        # get the station coordinat
+        # Get the station coordinat
         station_xyz_info = station_df[station_df.Stations == station].iloc[0]
         station_lat, station_lon, station_elev = station_xyz_info.Lat, station_xyz_info.Lon, station_xyz_info.Elev
         
-        # calculate the source distance and the azimuth (hypo to station azimuth)
+        # Calculate the source distance and the azimuth (hypo to station azimuth)
         epicentral_distance, azimuth, back_azimuth = gps2dist_azimuth(hypo_lat, hypo_lon, station_lat, station_lon)
         source_distance = np.sqrt(epicentral_distance**2 + ((hypo_depth + station_elev)**2))
         
-        # get the pick_df data for P arrival and S arrival
+        # Get the pick_df data for P arrival and S arrival
         pick_info = pick_df[pick_df.Station == station].iloc[0]
         P_pick_time = UTCDateTime(
             f"{pick_info.Year}-{int(pick_info.Month):02d}-{int(pick_info.Day):02d}T"
@@ -223,21 +221,21 @@ def calculate_moment_magnitude(
             f"{int(pick_info.Hour):02d}:{int(pick_info.Minutes_S):02d}:{float(pick_info.S_Arr_Sec):012.9f}"
         )
         
-        # read the waveform 
+        # Read the waveform 
         stream = read_waveforms(wave_path, event_id, station)
         stream_copy = stream.copy()
         if len(stream_copy) < 3:
             logger.warning(f"Event_{event_id}: Not all components available for station {station} to calculate event {event_id} moment magnitude")
             continue
         
-        # perform the instrument removal
+        # Perform the instrument removal
         try:
             stream_displacement = instrument_remove(stream_copy, calibration_path, figure_path, figure_statement=False)
         except Exception as e:
             logger.warning(f"Event_{event_id}: An error occured when correcting instrument for station {station}: {e}", exc_info=True)
             continue
         
-        # perform station rotation form ZNE to LQT 
+        # Perform station rotation form ZNE to LQT 
         try:
             try:
                 hypo_coordinate = [hypo_lat, hypo_lon , -1*hypo_depth]  # depth must be in negative notation
@@ -261,12 +259,12 @@ def calculate_moment_magnitude(
         # check sampling rate
         fs = 1 / rotated_stream[0].stats.delta
         try:
-            # calculate source spectra
+            # Calculate source spectra
             freq_P , spec_P  = calculate_spectra(p_window_data, fs)
             freq_SV, spec_SV = calculate_spectra(sv_window_data, fs)
             freq_SH, spec_SH = calculate_spectra(sh_window_data, fs)
             
-            # calculate the noise spectra
+            # Calculate the noise spectra
             freq_N_P,  spec_N_P  = calculate_spectra(p_noise_data, fs)
             freq_N_SV, spec_N_SV = calculate_spectra(sv_noise_data, fs)
             freq_N_SH, spec_N_SH = calculate_spectra(sh_noise_data, fs)
@@ -274,7 +272,7 @@ def calculate_moment_magnitude(
             logger.warning(f"Event_{event_id}: An error occured during spectra calculation for station {station}, {e}.", exc_info=True)
             continue
 
-        # fitting the spectrum, find the optimal value of Omega_O, corner frequency and Q using systematic/stochastic algorithm available
+        # Fitting the spectrum, find the optimal value of Omega_O, corner frequency and Q using systematic/stochastic algorithm available
         try:
             fit_P  = fit.fit_spectrum_qmc(freq_P,  spec_P,  abs(float(P_pick_time - origin_time)), CONFIG.F_MIN, CONFIG.F_MAX, 3000)
             fit_SV = fit.fit_spectrum_qmc(freq_SV, spec_SV, abs(float(S_pick_time - origin_time)), CONFIG.F_MIN, CONFIG.F_MAX, 3000)
@@ -285,12 +283,12 @@ def calculate_moment_magnitude(
         if any(f is None for f in [fit_P, fit_SV, fit_SH]):
             continue
 
-        # fitting spectrum output
+        # Fitting spectrum output
         Omega_0_P,  Q_factor_p,  f_c_P,  err_P,  x_fit_P,  y_fit_P  = fit_P
         Omega_0_SV, Q_factor_SV, f_c_SV, err_SV, x_fit_SV, y_fit_SV = fit_SV
         Omega_0_SH, Q_factor_SH, f_c_SH, err_SH, x_fit_SH, y_fit_SH = fit_SH
 
-        # updating the fitting dict handler 
+        # Updating the fitting object collector 
         fitting_result["ID"].append(event_id)
         fitting_result["Station"].append(station)
         fitting_result["F_corner_P"].append(f_c_P)
@@ -307,27 +305,27 @@ def calculate_moment_magnitude(
         fitting_result["RMS_e_SH_(nms)"].append((err_SH))
 
 
-        # calculate the moment magnitude
+        # Calculate the moment magnitude
         try:
-            # calculate the  resultant omega
+            # Calculate the  resultant omega
             omega_P = Omega_0_P*1e-9
             omega_S = ((Omega_0_SV**2 + Omega_0_SH**2)**0.5)*1e-9
          
-            # calculate seismic moment
+            # Calculate seismic moment
             M_0_P = (4.0 * np.pi * density_value * (velocity_P ** 3) * source_distance * omega_P) / (CONFIG.R_PATTERN_P * CONFIG.FREE_SURFACE_FACTOR)
             M_0_S = (4.0 * np.pi * density_value * (velocity_S ** 3) * source_distance * omega_S) / (CONFIG.R_PATTERN_S * CONFIG.FREE_SURFACE_FACTOR)
             fitting_result["Moment_P_(Nm)"].append(M_0_P)
             fitting_result["Moment_S_(Nm)"].append(M_0_S)
             
-            # calculate average seismic moment at station
+            # Calculate average seismic moment at station
             moments.append((M_0_P + M_0_S)/2)
             
-            # calculate source radius
+            # Calculate source radius
             r_P = (CONFIG.K_P * velocity_P)/f_c_P
             r_S = (2 * CONFIG.K_S * velocity_S)/(f_c_SV + f_c_SH)
             source_radius.append((r_P + r_S)/2)
             
-            # calculate corner frequency mean
+            # Calculate corner frequency mean
             corner_freq_S = (f_c_SV + f_c_SH)/2
             corner_frequencies.append((f_c_P + corner_freq_S)/2)
 
@@ -336,7 +334,7 @@ def calculate_moment_magnitude(
             continue
         
         
-        # collect data for plotting
+        # Update fitting spectral object collectro for plotting
         if figure_statement:
             all_streams.append(rotated_stream)
             all_p_times.append(P_pick_time)
@@ -360,7 +358,8 @@ def calculate_moment_magnitude(
 
     if not moments:
         return {}, fitting_result
-    # calculate average and std of moment magnitude
+    
+    # Calculate average and std of moment magnitude
     moment_average, moment_std  = np.mean(moments), np.std(moments)
     mw = ((2.0 / 3.0) * np.log10(moment_average)) - 6.07
     mw_std = (2.0 /3.0) * moment_std/(moment_average * np.log(10))
@@ -374,7 +373,8 @@ def calculate_moment_magnitude(
                 "Mw_average":[f"{mw:.3f}"],
                 "Mw_std":[f"{mw_std:.3f}"]
                 }
-                
+    
+    # Create fitting spectral plot
     if figure_statement and all_streams:
         try:
             plot_spectral_fitting(event_id, all_streams, all_p_times, all_s_times, all_freqs, all_specs, all_fits, station_names, figure_path)
@@ -418,7 +418,7 @@ def start_calculate(
     # Get the user input.
     id_start, id_end, mw_output, figure_statement = get_user_input()
 
-    # initiate dataframe for magnitude calculation results
+    # Initiate dataframe for magnitude calculation results
     df_result   = pd.DataFrame(
                         columns = ["ID", "Fc_avg", "Fc_std", "Src_rad_avg_(m)", "Src_rad_std_(m)", "Stress_drop_(bar)", "Mw_average", "Mw_std"] 
                         )
@@ -440,27 +440,27 @@ def start_calculate(
         for event_id in range (id_start, id_end + 1):
             logging.info(f"  Calculate moment magnitude for event ID {event_id} ...")
             
-            # get the dataframe 
+            # Get the dataframe 
             hypo_data_handler   = hypo_data[hypo_data["ID"] == event_id]
             pick_data_handler   = pick_data[pick_data["Event ID"] == event_id]
             
-            # check empty data frame
+            # Check empty data frame
             if hypo_data_handler.empty or pick_data_handler.empty:
                 logger.warning(f"Event_{id}: No data for event {event_id}, skipping...")
                 failed_events+=1
                 continue
 
             else:
-                # start calculating moment magnitude
+                # Start calculating moment magnitude
                 try:
-                    # calculate the moment magnitude
+                    # Calculate the moment magnitude
                     mw_results, fitting_result = calculate_moment_magnitude(wave_path, hypo_data_handler, pick_data_handler, station_data, calibration_path, event_id, figure_path, figure_statement)
 
-                    # create the dataframe from calculate_ml_magnitude results
+                    # Create the dataframe from calculate_ml_magnitude results
                     mw_magnitude_result = pd.DataFrame.from_dict(mw_results)
                     mw_fitting_result   = pd.DataFrame.from_dict(fitting_result)
                     
-                    # concatinate the dataframe
+                    # Concatinate the dataframe
                     df_result = pd.concat([df_result, mw_magnitude_result], ignore_index = True)
                     df_fitting = pd.concat([df_fitting, mw_fitting_result], ignore_index = True)
                 
