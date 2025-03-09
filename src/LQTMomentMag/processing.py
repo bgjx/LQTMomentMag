@@ -73,13 +73,13 @@ def rotate_component(stream: Stream, azimuth: float, incidence: float) -> Stream
 
 
 
-def window_trace(stream: Stream, P_arr: float, S_arr: float) -> Tuple[np.ndarray, ...]:
+def window_trace(streams: Stream, P_arr: float, S_arr: float) -> Tuple[np.ndarray, ...]:
     """
     Windows seismic trace data around P, SV, and SH phase and extracts noise data.
 
     Args:
     
-        trace (Trace): A Trace object containing the seismic data.
+        streams (Stream): A stream object containing the seismic data.
         P_arr (float): The arrival time of the P phase (in seconds from the trace start).
         S_arr (float): The arrival time of the S phase (in seconds from the trace start).
 
@@ -94,7 +94,7 @@ def window_trace(stream: Stream, P_arr: float, S_arr: float) -> Tuple[np.ndarray
     """
     
     # Extract the vertical, radial, and transverse components
-    [trace_L, trace_Q, trace_T] = [stream.select(component = comp)[0] for comp in ['L', 'Q', 'T']]
+    [trace_L, trace_Q, trace_T] = [streams.select(component = comp)[0] for comp in ['L', 'Q', 'T']]
     
     # Dynamic window parameters
     s_p_time = S_arr - P_arr    
@@ -306,6 +306,41 @@ def calculate_moment_magnitude(
 
         # create figure
         if figure_statement:
+            # dinamic window parameter
+            s_p_time = float(S_pick_time - P_pick_time)    
+            time_after_pick_p = 0.80 * s_p_time
+            time_after_pick_s = 1.75 * s_p_time
+            for comp, label in zip(["L", "Q", "T"], ["P", "SV", "Sh"]):
+                trace = rotated_stream.select(comp=trace)[0]
+                start_time = trace.stats.starttime
+                trace.trim(start_time+(P_pick_time - start_time) - 2.0, start_time+(S_pick_time - start_time)+6.0)
+                ax = axs[counter, 0]
+                ax.plot(trace.times(), trace.data, "k")
+                ax.axvline(P_pick_time - trace.stats.starttime, color='r', linestyle='-', label='P arrival')
+                ax.axvline(S_pick_time - trace.stats.starttiem, color='b', linestyle='-', label='S arrival')
+                ax.axvline(P_pick_time - CONFIG.PADDING_BEFORE_ARRIVAL - trace.stats.starttime, color='g', linestyle='--')
+                ax.axvline(P_pick_time + (time_after_pick_p if comp == "L" else time_after_pick_s) - trace.stats.starttime, color='g', linestyle='--', label='P phase window')
+                ax.axvline(P_pick_time - CONFIG.NOISE_DURATION - trace.stats.starttime, color='gray', linestyle='--')
+                ax.axvline(P_pick_time - CONFIG.NOISE_PADDING - trace.stats.starttime, color='gray', linestyle='--')
+                ax.set_title(f"{trace.stats.station}_BH{comp}", loc='right', va='center')
+                ax.legend()
+                ax.set_xlabel("Relative Time (s)")
+                ax.set_ylabel("Amp (m)")
+
+                ax = axs[counter, 1]
+                ax.loglog(freqs[label], specs[label], "k", label=f"{label} spectra")
+                ax.loglog(freqs[f"N_{label}"], specs[f"N_{label}"], "gray", label="Noise Spectra")
+                ax.loglog(fits[label][4], fits[label][5], "b-", label=f"Fitted {label} Spectra")
+                ax.set_title(f"{trace.stats.station}_BH{comp}", loc="right")
+                ax.legend()
+                ax.set_xlabel("Frequencies (Hz)")
+                ax.set_ylabel("Amp (nms)")
+
+                counter += 1
+
+
+
+
             # frequency window for plotting purposes
             f_min_plot = F_MIN
             f_max_plot = F_MAX*1.75
