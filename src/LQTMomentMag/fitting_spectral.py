@@ -14,7 +14,7 @@ Contact:
 - https://github.com/bgjx
 
 Pre-requisite modules:
-- [numpy, scipy, skopt]
+- [numpy, scipy, scikit-optimize]
 
 This module fits seismic displacement spectra to estimate Omega_0, corner frequency, and quality factor
 using Quasi-Monte Carlo (QMC) sampling, Bayesian optimization, and grid search, based on Abercrombie
@@ -41,7 +41,7 @@ OMEGA_0_RANGE_MIN = 0.1
 OMEGA_0_RANGE_MAX = 1000
 Q_RANGE_MIN = 50            # Minimum Q factor for attenuation (geothermal crust)
 Q_RANGE_MAX = 250           # Maximum Q factor (upper limit for shallow crust)
-FC_RANGE_BUFFER = 2      # Buffer below f_min for corner frequency (Hz)
+FC_RANGE_BUFFER = 2         # Buffer below f_min for corner frequency (Hz)
 DEFAULT_N_SAMPLES = 3000    # Default number of samples for QMC and Bayesian optimization
 
 

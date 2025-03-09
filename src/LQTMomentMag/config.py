@@ -4,8 +4,8 @@ from typing import List
 from pathlib import Path
 
 @dataclass
-class SeismicConfig:
-    """Configuration settings for moment magnitude calculations."""
+class MagnitudeConfig:
+    """ Class of magnitude calculation parameters with defaults. """
     WATER_LEVEL: int = 10
     PRE_FILTER: List[float] = None # Initialized in __post_init__
     F_MIN: int = 7
@@ -39,6 +39,23 @@ class SeismicConfig:
         if self.DENSITY is None:
             self.DENSITY = [2700] * 9
 
+@dataclass
+class SpectralConfig:
+    """ Class of spectral fitting parameters with defaults. """
+    OMEGA_0_RANGE_MIN: float = 0.1
+    OMEGA_0_RANGE_MAX: float = 2000.0
+    Q_RANGE_MIN: float = 50.0
+    Q_RANGE_MAX: float = 250.0
+    FC_RANGE_BUFFER: float = 2.0
+    DEFAULT_N_SAMPLES: int = 3000
+
+
+class Config:
+    """ Combines magnitude and spectral configurations. """
+    def __init__(self):
+        self.magnitude = MagnitudeConfig()
+        self.spectral = SpectralConfig()
+
     def load_from_file(self, config_file: str = None) -> None:
         """Load configuration from an INI file, with fallback to defaults."""
         config  = ConfigParser()
@@ -46,27 +63,39 @@ class SeismicConfig:
             config_file = Path(__file__).parent.parent/ "config.ini"
         if not config.read(config_file):
             return 
-        self.WATER_LEVEL = config.getint("Seismic", "water_level", fallback=self.WATER_LEVEL)
-        self.PRE_FILTER = [float(x) for x in config.get("Seismic", "pre_filter", fallback="2,5,55,60").split(",")]
-        self.F_MIN = config.getfloat("Seismic", "f_min", fallback=self.F_MIN)
-        self.F_MAX = config.getfloat("Seismic", "f_max", fallback=self.F_MAX)
-        self.PADDING_BEFORE_ARRIVAL = config.getfloat("Seismic", "padding_before_arrival", fallback=self.PADDING_BEFORE_ARRIVAL)
-        self.NOISE_DURATION = config.getfloat("Seismic", "noise_duration", fallback=self.NOISE_DURATION)
-        self.NOISE_PADDING = config.getfloat("Seismic", "noise_padding", fallback=self.NOISE_PADDING)
-        self.R_PATTERN_P = config.getfloat("Seismic", "r_pattern_p", fallback=self.R_PATTERN_P )
-        self.R_PATTERN_S = config.getfloat("Seismic", "r_pattern_s", fallback=self.R_PATTERN_S)
-        self.FREE_SURFACE_FACTOR = config.getfloat("Seismic", "free_surface_factor", fallback=self.FREE_SURFACE_FACTOR)
-        self.K_P = config.getfloat("Seismic", "k_p", fallback=self.K_P)
-        self.K_S = config.getfloat("Seismic", "k_s", fallback=self.K_S)
         
-        # parse layer boundaries
-        boundaries_str = config.get("Seismic", "layer_boundaries", fallback= "-3.00,-1.90; -1.90,-0.59; -0.59, 0.22; 0.22, 2.50; 2.50, 7.00; 7.00,9.00;  9.00,15.00 ; 15.00,33.00; 33.00,9999")
-        self.LAYER_BOUNDARIES = [[float(x) for x in layer.split(",")] for layer in boundaries_str.split(";")]
-        self.VELOCITY_VP = [float(x) for x in config.get("Seismic", "velocity_vp", fallback="2.68, 2.99, 3.95, 4.50, 4.99, 5.60, 5.80, 6.40, 8.00").split(",")]
-        self.VELOCITY_VS = [float(x) for x in config.get("Seismic", "velocity_vs", fallback="1.60, 1.79, 2.37, 2.69, 2.99, 3.35, 3.47, 3.83, 4.79").split(",")]
-        self.DENSITY = [float(x) for x in config.get("Seismic", "density", fallback="2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700").split(",")]
+        # load magnitude config section
+        if "Magnitude" in config:
+            mag_section = config["Magnitude"]
+            self.magnitude.WATER_LEVEL = mag_section.getint("water_level", fallback=self.magnitude.WATER_LEVEL)
+            self.magnitude.PRE_FILTER = [float(x) for x in mag_section.get("pre_filter", fallback="2,5,55,60").split(",")]
+            self.magnitude.F_MIN = mag_section.getfloat("f_min", fallback=self.magnitude.F_MIN)
+            self.magnitude.F_MAX = mag_section.getfloat("f_max", fallback=self.magnitude.F_MAX)
+            self.magnitude.PADDING_BEFORE_ARRIVAL = mag_section.getfloat("padding_before_arrival", fallback=self.magnitude.PADDING_BEFORE_ARRIVAL)
+            self.magnitude.NOISE_DURATION = mag_section.getfloat("noise_duration", fallback=self.magnitude.NOISE_DURATION)
+            self.magnitude.NOISE_PADDING = mag_section.getfloat("noise_padding", fallback=self.magnitude.NOISE_PADDING)
+            self.magnitude.R_PATTERN_P = mag_section.getfloat("r_pattern_p", fallback=self.magnitude.R_PATTERN_P )
+            self.magnitude.R_PATTERN_S = mag_section.getfloat("r_pattern_s", fallback=self.magnitude.R_PATTERN_S)
+            self.magnitude.FREE_SURFACE_FACTOR = mag_section.getfloat("free_surface_factor", fallback=self.magnitude.FREE_SURFACE_FACTOR)
+            self.magnitude.K_P = mag_section.getfloat("k_p", fallback=self.magnitude.K_P)
+            self.magnitude.K_S = mag_section.getfloat("k_s", fallback=self.magnitude.K_S)
+            boundaries_str = mag_section.get("layer_boundaries", fallback= "-3.00,-1.90; -1.90,-0.59; -0.59, 0.22; 0.22, 2.50; 2.50, 7.00; 7.00,9.00;  9.00,15.00 ; 15.00,33.00; 33.00,9999")
+            self.magnitude.LAYER_BOUNDARIES = [[float(x) for x in layer.split(",")] for layer in boundaries_str.split(";")]
+            self.magnitude.VELOCITY_VP = [float(x) for x in mag_section.get("velocity_vp", fallback="2.68, 2.99, 3.95, 4.50, 4.99, 5.60, 5.80, 6.40, 8.00").split(",")]
+            self.magnitude.VELOCITY_VS = [float(x) for x in mag_section.get("velocity_vs", fallback="1.60, 1.79, 2.37, 2.69, 2.99, 3.35, 3.47, 3.83, 4.79").split(",")]
+            self.magnitude.DENSITY = [float(x) for x in mag_section.get("density", fallback="2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700").split(",")]
 
+        # load spectal config section
+
+        if "Spectral" in config:
+            spec_section = config["Spectral"]
+            self.spectral.OMEGA_0_RANGE_MIN = spec_section.getfloat("omega_0_range_min", fallback=self.spectral.OMEGA_0_RANGE_MIN)
+            self.spectral.OMEGA_0_RANGE_MAX = spec_section.getfloat("omega_0_range_max", fallback=self.spectral.OMEGA_0_RANGE_MAX)
+            self.spectral.Q_RANGE_MIN =  spec_section.getfloat("q_range_min", fallback=self.spectral.Q_RANGE_MIN)
+            self.spectral.Q_RANGE_MAX =  spec_section.getfloat("q_range_max", fallback=self.spectral.Q_RANGE_MAX)
+            self.spectral.FC_RANGE_BUFFER = spec_section.getfloat("fc_range_buffer", fallback=self.spectral.FC_RANGE_BUFFER)
+            self.spectral.DEFAULT_N_SAMPLES = spec_section.getint("default_n_samples", fallback=self.spectral.DEFAULT_N_SAMPLES)
 
 # singleton instance for easy access
-CONFIG = SeismicConfig()
+CONFIG = Config()
 CONFIG.load_from_file()
