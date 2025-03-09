@@ -150,21 +150,8 @@ def calculate_moment_magnitude(
         Tuple[Dict[str, str], Dict[str, List]]:
             - results (Dict[str, str]): A Dictionary containing calculated moment magnitude and related metrics.
             - fitting_result (Dict[str, List]): A dictionary of detailed fitting results for each station.
-    """
-    
-    # initialize figure if needed
-    if figure_statement:
-        try:
-            num_stations = len(pick_df['Station'].unique())
-            fig, axs= plt.subplots(num_stations*3, 2, figsize=(20,60))
-            plt.subplots_adjust(hspace=0.5)
-            axs[0,0].set_title("Phase Window", fontsize='20')
-            axs[0,1].set_title("Spectra Fitting Profile", fontsize='20')
-            counter = 0
-        except Exception as e:
-            logger.warning(f"Event_{event_id}: Error initializing figures for event {event_id}: {e}.", exc_info=True)
-            fig_statement = False    
-
+    """ 
+    # object collector for fitting result
     fitting_result = {
         "ID":[],
         "Station":[],
@@ -345,7 +332,7 @@ def calculate_moment_magnitude(
             corner_frequencies.append((f_c_P + corner_freq_S)/2)
 
         except Exception as e:
-            logger.warning(f" Event_{event_id}: Failed to calculate seismic moment for event {event_id}, {e}.")
+            logger.warning(f" Event_{event_id}: Failed to calculate seismic moment for event {event_id}, {e}.", exc_info=True)
             continue
         
         
@@ -389,7 +376,10 @@ def calculate_moment_magnitude(
                 }
                 
     if figure_statement and all_streams:
-        plot_spectral_fitting(event_id, all_streams, all_p_times, all_s_times, all_freqs, all_specs, all_fits, station_names, figure_path)
+        try:
+            plot_spectral_fitting(event_id, all_streams, all_p_times, all_s_times, all_freqs, all_specs, all_fits, station_names, figure_path)
+        except Exception as e:
+            logger.warning(f"Event_{event_id}: Failed to create spectral fitting plot for event {event_id}, {e}.", exc_info=True)
     
     return results, fitting_result
 
