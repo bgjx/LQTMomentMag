@@ -144,8 +144,8 @@ def instrument_remove (
             # Remove instrument response
             displacement_trace = trace.remove_response(
                                     inventory = inventory,
-                                    pre_filt = CONFIG.PRE_FILTER,
-                                    water_level = CONFIG.WATER_LEVEL,
+                                    pre_filt = CONFIG.magnitude.PRE_FILTER,
+                                    water_level = CONFIG.magnitude.WATER_LEVEL,
                                     output = 'DISP',
                                     zero_mean = True,
                                     taper = True,

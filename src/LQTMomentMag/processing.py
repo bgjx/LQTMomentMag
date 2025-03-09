@@ -331,8 +331,8 @@ def calculate_moment_magnitude(
             omega_S = ((Omega_0_SV**2 + Omega_0_SH**2)**0.5)*1e-9
          
             # Calculate seismic moment
-            M_0_P = (4.0 * np.pi * density_value * (velocity_P ** 3) * source_distance * omega_P) / (CONFIG.R_PATTERN_P * CONFIG.FREE_SURFACE_FACTOR)
-            M_0_S = (4.0 * np.pi * density_value * (velocity_S ** 3) * source_distance * omega_S) / (CONFIG.R_PATTERN_S * CONFIG.FREE_SURFACE_FACTOR)
+            M_0_P = (4.0 * np.pi * density_value * (velocity_P ** 3) * source_distance * omega_P) / (CONFIG.magnitude.R_PATTERN_P * CONFIG.magnitude.FREE_SURFACE_FACTOR)
+            M_0_S = (4.0 * np.pi * density_value * (velocity_S ** 3) * source_distance * omega_S) / (CONFIG.magnitude.R_PATTERN_S * CONFIG.magnitude.FREE_SURFACE_FACTOR)
             fitting_result["Moment_P_(Nm)"].append(M_0_P)
             fitting_result["Moment_S_(Nm)"].append(M_0_S)
             
@@ -340,8 +340,8 @@ def calculate_moment_magnitude(
             moments.append((M_0_P + M_0_S)/2)
             
             # Calculate source radius
-            r_P = (CONFIG.K_P * velocity_P)/f_c_P
-            r_S = (2 * CONFIG.K_S * velocity_S)/(f_c_SV + f_c_SH)
+            r_P = (CONFIG.magnitude.K_P * velocity_P)/f_c_P
+            r_S = (2 * CONFIG.magnitude.K_S * velocity_S)/(f_c_SV + f_c_SH)
             source_radius.append((r_P + r_S)/2)
             
             # Calculate corner frequency mean
@@ -470,7 +470,6 @@ def start_calculate(
                 continue
 
             else:
-                # Start calculating moment magnitude
                 try:
                     # Calculate the moment magnitude
                     mw_results, fitting_result = calculate_moment_magnitude(wave_path, hypo_data_handler, pick_data_handler, station_data, calibration_path, event_id, figure_path, figure_statement)
