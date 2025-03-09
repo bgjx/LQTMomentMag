@@ -184,6 +184,21 @@ def calculate_moment_magnitude(
         "Moment_S_(Nm)":[]
     }
 
+    # object collector for plotting
+    all_streams = []
+    all_p_times = []
+    all_s_times = []
+    all_freqs = {
+        "P": [],  "SV":[], "SH":[], "N_P":[], "N_SV":[], "N_SH":[] 
+    }
+    all_specs = {
+        "P": [],  "SV":[], "SH":[], "N_P":[], "N_SV":[], "N_SH":[] 
+    }
+    all_fits = {
+        "P":[], "SV":[], "SH":[]
+    }
+    station_names = []
+
     # get hypocenter details
     hypo_info = hypo_df.iloc[0]
     origin_time = UTCDateTime(f"{int(hypo_info.Year):04d}-{int(hypo_info.Month):02d}-{int(hypo_info.Day):02d}T{int(hypo_info.Hour):02d}:{int(hypo_info.Minute):02d}:{float(hypo_info.T0):012.9f}") 
@@ -304,149 +319,6 @@ def calculate_moment_magnitude(
         fitting_result["RMS_e_SV_(nms)"].append((err_SV))
         fitting_result["RMS_e_SH_(nms)"].append((err_SH))
 
-        # create figure
-        if figure_statement:
-            # dinamic window parameter
-            s_p_time = float(S_pick_time - P_pick_time)    
-            time_after_pick_p = 0.80 * s_p_time
-            time_after_pick_s = 1.75 * s_p_time
-            for comp, label in zip(["L", "Q", "T"], ["P", "SV", "Sh"]):
-                trace = rotated_stream.select(comp=trace)[0]
-                start_time = trace.stats.starttime
-                trace.trim(start_time+(P_pick_time - start_time) - 2.0, start_time+(S_pick_time - start_time)+6.0)
-                ax = axs[counter, 0]
-                ax.plot(trace.times(), trace.data, "k")
-                ax.axvline(P_pick_time - trace.stats.starttime, color='r', linestyle='-', label='P arrival')
-                ax.axvline(S_pick_time - trace.stats.starttiem, color='b', linestyle='-', label='S arrival')
-                ax.axvline(P_pick_time - CONFIG.PADDING_BEFORE_ARRIVAL - trace.stats.starttime, color='g', linestyle='--')
-                ax.axvline(P_pick_time + (time_after_pick_p if comp == "L" else time_after_pick_s) - trace.stats.starttime, color='g', linestyle='--', label='P phase window')
-                ax.axvline(P_pick_time - CONFIG.NOISE_DURATION - trace.stats.starttime, color='gray', linestyle='--')
-                ax.axvline(P_pick_time - CONFIG.NOISE_PADDING - trace.stats.starttime, color='gray', linestyle='--')
-                ax.set_title(f"{trace.stats.station}_BH{comp}", loc='right', va='center')
-                ax.legend()
-                ax.set_xlabel("Relative Time (s)")
-                ax.set_ylabel("Amp (m)")
-
-                ax = axs[counter, 1]
-                ax.loglog(freqs[label], specs[label], "k", label=f"{label} spectra")
-                ax.loglog(freqs[f"N_{label}"], specs[f"N_{label}"], "gray", label="Noise Spectra")
-                ax.loglog(fits[label][4], fits[label][5], "b-", label=f"Fitted {label} Spectra")
-                ax.set_title(f"{trace.stats.station}_BH{comp}", loc="right")
-                ax.legend()
-                ax.set_xlabel("Frequencies (Hz)")
-                ax.set_ylabel("Amp (nms)")
-
-                counter += 1
-
-
-
-
-            # frequency window for plotting purposes
-            f_min_plot = F_MIN
-            f_max_plot = F_MAX*1.75
-            freq_P, spec_P = window_band(freq_P, spec_P, f_min_plot, f_max_plot)
-            freq_SV, spec_SV = window_band(freq_SV, spec_SV, f_min_plot, f_max_plot)
-            freq_SH, spec_SH = window_band(freq_SH, spec_SH, f_min_plot, f_max_plot)
-            freq_N_P, spec_N_P = window_band(freq_N_P, spec_N_P, f_min_plot, f_max_plot)
-            freq_N_SV, spec_N_SV = window_band(freq_N_SV, spec_N_SV, f_min_plot, f_max_plot)
-            freq_N_SH, spec_N_SH = window_band(freq_N_SH, spec_N_SH, f_min_plot, f_max_plot)
-
-            # dinamic window parameter
-            s_p_time = float(S_pick_time - P_pick_time)    
-            time_after_pick_p = 0.80 * s_p_time
-            time_after_pick_s = 1.75 * s_p_time
-            
-            try:
-                # plot for phase windowing
-                # 1. For P phase or vertical component
-                trace_L = rotated_stream.select(component = 'L')[0]
-                start_time = trace_L.stats.starttime
-                before = (P_pick_time - start_time) - 2.0
-                after = (S_pick_time - start_time) + 6.0
-                trace_L.trim(start_time+before, start_time+after)
-                axs[counter][0].plot(trace_L.times(), trace_L.data, 'k')
-                axs[counter][0].axvline( x= (P_pick_time - trace_L.stats.starttime ), color='r', linestyle='-', label='P arrival')
-                axs[counter][0].axvline( x= (S_pick_time - trace_L.stats.starttime ), color='b', linestyle='-', label='S arrival')
-                axs[counter][0].axvline( x= (P_pick_time - TIME_BEFORE_PICK -  trace_L.stats.starttime), color='g', linestyle='--')
-                axs[counter][0].axvline( x= (P_pick_time + time_after_pick_p - trace_L.stats.starttime), color='g', linestyle='--', label='P phase window')
-                axs[counter][0].axvline( x= (P_pick_time - NOISE_DURATION -  trace_L.stats.starttime), color='gray', linestyle='--')
-                axs[counter][0].axvline( x= (P_pick_time - NOISE_PADDING  - trace_L.stats.starttime), color='gray', linestyle='--', label='Noise window')
-                axs[counter][0].set_title("{}_BH{}".format(trace_L.stats.station, trace_L.stats.component), loc="right",va='center')
-                axs[counter][0].legend()
-                axs[counter][0].set_xlabel("Relative Time (s)")
-                axs[counter][0].set_ylabel("Amp (m)")
-               
-                # 2. For SV phase or radial component
-                axis = counter + 1
-                trace_Q = rotated_stream.select(component = 'Q')[0]
-                start_time = trace_Q.stats.starttime
-                before = (P_pick_time - start_time) - 2.0
-                after = (S_pick_time - start_time) + 6.0
-                trace_Q.trim(start_time+before, start_time+after)
-                axs[counter+1][0].plot(trace_Q.times(), trace_Q.data, 'k')
-                axs[counter+1][0].axvline( x= (P_pick_time - trace_Q.stats.starttime ), color='r', linestyle='-', label='P arrival')
-                axs[counter+1][0].axvline( x= (S_pick_time - trace_Q.stats.starttime), color='b', linestyle='-', label='S arrival')
-                axs[counter+1][0].axvline( x= (S_pick_time - TIME_BEFORE_PICK -  trace_Q.stats.starttime  ), color='g', linestyle='--')
-                axs[counter+1][0].axvline( x= (S_pick_time + time_after_pick_s - trace_Q.stats.starttime ), color='g', linestyle='--', label='SV phase window')
-                axs[counter+1][0].axvline( x= (P_pick_time - NOISE_DURATION -  trace_Q.stats.starttime), color='gray', linestyle='--')
-                axs[counter+1][0].axvline( x= (P_pick_time - NOISE_PADDING  - trace_Q.stats.starttime), color='gray', linestyle='--', label='Noise window')
-                axs[counter+1][0].set_title("{}_BH{}".format(trace_Q.stats.station, trace_Q.stats.component), loc="right",va='center')
-                axs[counter+1][0].legend()
-                axs[counter+1][0].set_xlabel("Relative Time (s)")
-                axs[counter+1][0].set_ylabel("Amp (m)")
-                
-                # 3. For SH phase or transverse component
-                trace_T = rotated_stream.select(component = 'T')[0]
-                start_time = trace_T.stats.starttime
-                before = (P_pick_time - start_time) - 2.0
-                after = (S_pick_time - start_time) + 6.0
-                trace_T.trim(start_time+before, start_time+after)
-                axs[counter+2][0].plot(trace_T.times(), trace_T.data, 'k')
-                axs[counter+2][0].axvline( x= (P_pick_time - trace_T.stats.starttime ), color='r', linestyle='-', label='P arrival')
-                axs[counter+2][0].axvline( x= (S_pick_time - trace_T.stats.starttime), color='b', linestyle='-', label='S arrival')
-                axs[counter+2][0].axvline( x= (S_pick_time - TIME_BEFORE_PICK -  trace_T.stats.starttime  ), color='g', linestyle='--')
-                axs[counter+2][0].axvline( x= (S_pick_time + time_after_pick_s - trace_T.stats.starttime ), color='g', linestyle='--', label='SH phase window')
-                axs[counter+2][0].axvline( x= (P_pick_time - NOISE_DURATION -  trace_T.stats.starttime), color='gray', linestyle='--')
-                axs[counter+2][0].axvline( x= (P_pick_time - NOISE_PADDING  - trace_T.stats.starttime), color='gray', linestyle='--', label='Noise window')
-                axs[counter+2][0].set_title("{}_BH{}".format(trace_T.stats.station, trace_T.stats.component), loc="right",va='center')
-                axs[counter+2][0].legend()
-                axs[counter+2][0].set_xlabel("Relative Time (s)")
-                axs[counter+2][0].set_ylabel("Amp (m)")
-               
-                # plot the spectra (P, SV, SH and Noise spectra)
-                # 1. For P spectra
-                axs[counter][1].loglog(freq_P, spec_P, color='black', label='P spectra')
-                axs[counter][1].loglog(freq_N_P, spec_N_P, color='gray', label='Noise spectra')
-                axs[counter][1].loglog(x_fit_P, y_fit_P, 'b-', label='Fitted P Spectra')
-                axs[counter][1].set_title("{}_BH{}".format(trace_L.stats.station, trace_L.stats.component), loc="right",va='center')
-                axs[counter][1].legend()
-                axs[counter][1].set_xlabel("Frequencies (Hz)")
-                axs[counter][1].set_ylabel("Amp (nms)")
-               
-               
-                # 2. For SV spectra
-                axs[counter+1][1].loglog(freq_SV, spec_SV, color='black', label='SV spectra')
-                axs[counter+1][1].loglog(freq_N_SV, spec_N_SV, color='gray', label='Noise spectra')
-                axs[counter+1][1].loglog(x_fit_SV, y_fit_SV, 'b-', label='Fitted SV Spectra')
-                axs[counter+1][1].set_title("{}_BH{}".format(trace_Q.stats.station, trace_Q.stats.component), loc="right",va='center')
-                axs[counter+1][1].legend()
-                axs[counter+1][1].set_xlabel("Frequencies (Hz)")
-                axs[counter+1][1].set_ylabel("Amp (nms)")
-                
-                
-                # 3. For SH spectra
-                axs[counter+2][1].loglog(freq_SH, spec_SH, color='black', label='SH spectra')
-                axs[counter+2][1].loglog(freq_N_SH, spec_N_SH, color='gray', label='Noise spectra')
-                axs[counter+2][1].loglog(x_fit_SH, y_fit_SH, 'b-', label='Fitted SH Spectra')
-                axs[counter+2][1].set_title("{}_BH{}".format(trace_T.stats.station, trace_T.stats.component), loc="right",va='center')
-                axs[counter+2][1].legend()
-                axs[counter+2][1].set_xlabel("Frequencies (Hz)")
-                axs[counter+2][1].set_ylabel("Amp (nms)")
-
-                counter +=3
-            except Exception as e:
-                logger.warning(f"Event_{event_id}: Failed to plot the fitting spectral for station {station}, {e}.")
-                continue
 
         # calculate the moment magnitude
         try:
@@ -475,6 +347,29 @@ def calculate_moment_magnitude(
         except Exception as e:
             logger.warning(f" Event_{event_id}: Failed to calculate seismic moment for event {event_id}, {e}.")
             continue
+        
+        
+        # collect data for plotting
+        if figure_statement:
+            all_streams.append(rotated_stream)
+            all_p_times.append(P_pick_time)
+            all_s_times.append(S_pick_time)
+            all_freqs["P"].append(freq_P)
+            all_freqs["SV"].append(freq_SV)
+            all_freqs["SH"].append(freq_SH)
+            all_freqs["N_P"].append(freq_N_P)
+            all_freqs["N_SV"].append(freq_N_SV)
+            all_freqs["N_SH"].append(freq_N_SH)
+            all_specs["P"].append(spec_P)
+            all_specs["SV"].append(spec_SV)
+            all_specs["SH"].append(spec_SH)
+            all_specs["N_P"].append(spec_N_P)
+            all_specs["N_SV"].append(spec_N_SV)
+            all_specs["N_SH"].append(spec_N_SH)
+            all_fits["P"].append(fit_P)
+            all_fits["SV"].append(fit_SV)
+            all_fits["SH"].append(fit_SH)
+            station_names.append(station)
 
     if not moments:
         return {}, fitting_result
@@ -493,11 +388,8 @@ def calculate_moment_magnitude(
                 "Mw_std":[f"{mw_std:.3f}"]
                 }
                 
-    if figure_statement and 'fig' in locals() : 
-        fig.suptitle(f"Event {event_id} {mw:.3f}Mw Spesctral Fitting Profile", fontsize='24', fontweight='bold')
-        #plt.title("Event {} Spectral Fitting Profile".format(ID), fontsize='20')
-        plt.savefig(figure_path.joinpath(f"event_{event_id}.png"))
-        plt.close(fig)
+    if figure_statement and all_streams:
+        plot_spectral_fitting(event_id, all_streams, all_p_times, all_s_times, all_freqs, all_specs, all_fits, station_names, figure_path)
     
     return results, fitting_result
 
