@@ -17,7 +17,7 @@ Pre-requisite modules:
 
 This module calculates incidence angles, travel times, and ray paths for seismic waves (P-waves, S-waves)
 using a layered velocity model and Snell’s Law-based shooting method, suitable for shallow borehole data
-in volcanic geothermal systems.
+in local earthquake monitoring.
 
 References:
 - Aki, K., & Richards, P. G. (2002). Quantitative Seismology, 2nd Edition. University Science Books.

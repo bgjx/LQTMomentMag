@@ -1,3 +1,22 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Dec 15 19:32:03 2022.
+Python code to calculate moment magnitude.
+
+
+Developed by arham zakki edelo.
+
+
+contact: 
+- edelo.arham@gmail.com
+- https://github.com/bgjx
+
+Pre-requisite modules:
+->[matplotlib, obspy, pathlib] 
+
+"""
+
 import logging
 import matplotlib.pyplot as plt
 from obspy import Stream
