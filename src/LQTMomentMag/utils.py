@@ -7,15 +7,6 @@ from obspy import UTCDateTime, Stream, Trace, read, read_inventory
 
 from .config import CONFIG
 
-
-warnings.filterwarnings("ignore")
-
-logging.basicConfig(
-    filename = 'mw_calculator_runtime.log',
-    level = logging.INFO,
-    format = "%(asctime)s - %(levelname)s - %(message)s",
-    datefmt = "%Y-%m-%d %H:%M:%S"
-)
 logger = logging.getLogger("mw_calculator")
 
 
