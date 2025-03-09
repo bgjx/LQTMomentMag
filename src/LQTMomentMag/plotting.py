@@ -32,7 +32,8 @@ def plot_spectral_fitting(
         figure_path(Path): Directory to save the plot.
 
     """
-
+    
+    # Initiate plotting dimension
     num_stations = len(streams)
     fig, axs = plt.subplot(num_stations*3, 2, figsize=(20, num_stations*15), squeeze=False)
     plt.subplots_adjust(hspace=0.5)
@@ -40,8 +41,8 @@ def plot_spectral_fitting(
     axs[0,1].set_title("Spectra Fitting Profile", fontsize=20)
 
     for station_idx, (stream, p_time, s_time, station) in  enumerate(zip(streams, p_arr_times, s_arr_times, stations)):
+        # Dinamic window parameter
         counter = station_idx*3
-        # dinamic window parameter
         s_p_time = float(s_time - p_time)    
         time_after_pick_p = 0.80 * s_p_time
         time_after_pick_s = 1.75 * s_p_time
