@@ -62,7 +62,6 @@ def build_raw_model(layer_boundaries: List[List[float]], velocities: List) -> Li
     return model
 
 
-
 def upward_model(hypo_depth_m: float, sta_elev_m: float, raw_model: List[List[float]]) -> List[List[float]]:
     """
     Build a modified model for direct upward-refracted waves from the raw model by evaluating 
@@ -96,7 +95,6 @@ def upward_model(hypo_depth_m: float, sta_elev_m: float, raw_model: List[List[fl
     return modified_model
  
 
- 
 def downward_model(hypo_depth_m: float, raw_model: List[List[float]]) -> List[List[float]]:
     """
     Build a modified model for downward critically refracted waves from the raw model by evaluating 
@@ -122,7 +120,6 @@ def downward_model(hypo_depth_m: float, raw_model: List[List[float]]) -> List[Li
     return modified_model
    
    
-
 def up_refract (epi_dist_m: float, 
                 up_model: List[List[float]], 
                 angles_deg: np.ndarray
@@ -167,8 +164,7 @@ def up_refract (epi_dist_m: float,
             break
     return result, final_take_off
       
-      
-      
+         
 def down_refract(epi_dist_m: float,
                     up_model: List[List[float]],
                     down_model: List[List[float]]
@@ -244,7 +240,6 @@ def down_refract(epi_dist_m: float,
     return  down_seg_result, up_seg_result
 
 
-
 def plot_rays (hypo_depth_m: float, 
                 sta_elev_m: float,
                 velocity: List, 
@@ -276,7 +271,6 @@ def plot_rays (hypo_depth_m: float,
         epi_dist_m (float): Epicenter distance in m.
         figure_path(Path): Directory to save the plot.
     """
-    
     
     fig, axs = plt.subplots(figsize=(10,8))
     
@@ -324,7 +318,6 @@ def plot_rays (hypo_depth_m: float,
     axs.legend()
     plt.savefig(f"{figure_path}/ray_path_event.png")
     plt.close(fig)
-
 
 
 def calculate_inc_angle(hypo: List[float],

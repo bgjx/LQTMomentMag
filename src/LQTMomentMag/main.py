@@ -36,7 +36,6 @@ logging.basicConfig(
 logger = logging.getLogger("mw_calculator")
 
 
-
 def main():
     """  Runs the moment magnitude calculation form command line or interactive input  """
     parser = argparse.ArgumentParser(description="Calculate moment magnitude in full LQT component")
@@ -73,7 +72,6 @@ def main():
     mw_fitting_df.to_excel(args.output_dir/ f"{output_name}_fitting_result.xlsx", index = False)
     
     return None
-
 
 
 if __name__ == "__main__" :
