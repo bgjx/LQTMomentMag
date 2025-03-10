@@ -358,7 +358,7 @@ def calculate_inc_angle(hypo: List[float],
     # build raw model and modified models
     raw_model = build_raw_model(model, velocity)
     up_model = upward_model (hypo_depth_m, sta_elev_m, raw_model.copy())
-    down_model = downward_model(hypo_depth_m, sta_elev_m, raw_model.copy())
+    down_model = downward_model(hypo_depth_m, raw_model.copy())
     
     #  start calculating all refracted waves for all layers they may propagate through
     up_ref, final_take_off = up_refract(epicentral_distance, up_model, ANGLE_RESOLUTION)
