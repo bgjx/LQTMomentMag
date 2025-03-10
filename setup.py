@@ -22,7 +22,8 @@ setup(
         "matplotlib>=3.6.0",
         "scipy>=1.9.0",
         "obspy>=1.4.0",
-        "tqdm>=4.64.0"
+        "tqdm>=4.64.0",
+        "configparser>=5.2.0",
     ],
     entry_points={
         "console_scripts": [
