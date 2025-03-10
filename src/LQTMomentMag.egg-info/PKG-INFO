@@ -1,0 +1,21 @@
+Metadata-Version: 2.1
+Name: LQTMomentMag
+Version: 1.0.0
+Summary: Calculate seismic moment magnitude in full LQT energy for very local earthquake case
+Home-page: https://github.com/bgjx/LQTMomentMag
+Author: Arham Zakki Edelo
+Author-email: edelo.arham@gmail.com
+License: MIT
+Keywords: Seismology,Moment Magnitude,Spectral Fitting,LQT Component
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy>=1.23.0
+Requires-Dist: pandas>=1.5.0
+Requires-Dist: matplotlib>=3.6.0
+Requires-Dist: scipy>=1.9.0
+Requires-Dist: obspy>=1.4.0
+Requires-Dist: tqdm>=4.64.0

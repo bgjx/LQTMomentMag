@@ -30,8 +30,8 @@ from obspy.signal import rotate
 from scipy import signal
 from tqdm import tqdm
 
-import src.LQTMomentMag.fitting_spectral as fit
-import src.LQTMomentMag.refraction as ref 
+import LQTMomentMag.fitting_spectral as fit
+import LQTMomentMag.refraction as ref 
 from .config import CONFIG
 from .plotting import plot_spectral_fitting
 from .utils import get_user_input, instrument_remove, read_waveforms, trace_snr
