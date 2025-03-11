@@ -17,6 +17,7 @@ Pre-requisite modules:
 
 """
 
+import sys
 import argparse
 import logging
 from pathlib import Path
@@ -36,7 +37,7 @@ logging.basicConfig(
 logger = logging.getLogger("mw_calculator")
 
 
-def main():
+def main(args=None):
     """  Runs the moment magnitude calculation form command line or interactive input  """
     parser = argparse.ArgumentParser(description="Calculate moment magnitude in full LQT component")
     parser.add_argument("--wave-dir", type=Path, default="data/waveforms", help="Path to wavefrom directory")
@@ -46,10 +47,10 @@ def main():
     parser.add_argument("--pick-file", type=Path, default="data/picks/picks_sample.xlsx", help="Arrival picking data file")
     parser.add_argument("--station-file", type=Path, default="data/stations/stations_sample.xlsx", help="Station data file")
     parser.add_argument("--output-dir", type=Path, default="results", help="Output directory for results")
-    args = parser.parse_args()
+    args = parser.parse_args(args if args is not None else sys.argv[1:])
 
     for path in [args.wave_dir, args.cal_dir, args.hypo_file, args.pick_file, args.station_file]:
-        if not path.exist():
+        if not path.exists():
             raise FileNotFoundError(f"Path not found: {path}")
     
     args.fig_dir.mkdir(parents=True, exist_ok=True)

@@ -9,7 +9,7 @@ def test_main_help(capsys):
         main(["--help"])
     assert exc.value.code == 0
     captured = capsys.readouterr()
-    assert "LQTMwcalc" in captured.out
+    assert "Calculate moment magnitude" in captured.out
 
 
 def test_main_invalid_args(capsys):
