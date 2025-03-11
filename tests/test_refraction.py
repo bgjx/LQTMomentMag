@@ -1,7 +1,5 @@
 """ Unit test for refraction.py """
 
-import os
-from pathlib import Path
 import pytest
 import numpy as np
 
