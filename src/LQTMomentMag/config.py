@@ -48,6 +48,8 @@ class SpectralConfig:
     Q_RANGE_MAX: float = 250.0
     FC_RANGE_BUFFER: float = 2.0
     DEFAULT_N_SAMPLES: int = 3000
+    N_FACTOR: int = 2
+    Y_FACTOR: int = 1
 
 
 class Config:
@@ -94,6 +96,8 @@ class Config:
             self.spectral.Q_RANGE_MAX =  spec_section.getfloat("q_range_max", fallback=self.spectral.Q_RANGE_MAX)
             self.spectral.FC_RANGE_BUFFER = spec_section.getfloat("fc_range_buffer", fallback=self.spectral.FC_RANGE_BUFFER)
             self.spectral.DEFAULT_N_SAMPLES = spec_section.getint("default_n_samples", fallback=self.spectral.DEFAULT_N_SAMPLES)
+            self.spectral.N_FACTOR = spec_section.getint("n_factor", fallback=self.spectral.N_FACTOR)
+            self.spectral.Y_FACTOR = spec_section.getint("y_factor", fallback=self.spectral.Y_FACTOR)
 
 # singleton instance for easy access
 CONFIG = Config()

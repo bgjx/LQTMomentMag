@@ -39,6 +39,7 @@ from .config import CONFIG
 
 logger = logging.getLogger("mw_calculator")
 
+
 def window_band(frequencies: np.ndarray, spectrums: np.ndarray, f_min: float, f_max: float) -> Tuple[np.ndarray, np.ndarray]:
     """
     Extracts a subset of the frequency spectrum within a specified frequency band.
@@ -67,7 +68,6 @@ def window_band(frequencies: np.ndarray, spectrums: np.ndarray, f_min: float, f_
 
     indices = np.where((frequencies >= f_min) & (frequencies <= f_max))
     return frequencies[indices], spectrums[indices]
-
 
 
 def calculate_source_spectrum(
@@ -101,7 +101,6 @@ def calculate_source_spectrum(
     denom = (1 + (frequencies / corner_frequency) ** (y*n))**(1/y)
     spectrums = num/denom
     return spectrums
-
 
 
 def fit_spectrum_grid_search (
@@ -166,7 +165,6 @@ def fit_spectrum_grid_search (
     x_tuned = np.linspace(max(CONFIG.spectral.FC_RANGE_BUFFER, f_min), f_max*1.75, 100)
     y_tuned = calculate_source_spectrum(x_tuned, omega_0_fit, q_factor_fit, f_c_fit, traveltime)
     return omega_0_fit, q_factor_fit, f_c_fit, best_rms_e, x_tuned, y_tuned
-
 
 
 def fit_spectrum_qmc (
@@ -249,7 +247,6 @@ def fit_spectrum_qmc (
         return None, None, None, None, np.array([]), np.array([])
 
 
-
 def fit_spectrum_bayesian(
     frequencies: np.ndarray,
     spectrums: np.ndarray,
@@ -330,12 +327,3 @@ def fit_spectrum_bayesian(
         
     except Exception :
         return None, None, None, None, np.ndarray([]), np.ndarray([])
-
-
-def main():
-    """Example usage and testing placeholder."""
-    return None
-
-
-if __name__ == "__main__":
-    main()
