@@ -39,7 +39,7 @@ logger = logging.getLogger("mw_calculator")
 
 def main(args=None):
     """  Runs the moment magnitude calculation form command line or interactive input  """
-    parser = argparse.ArgumentParser(description="Calculate moment magnitude in full LQT component")
+    parser = argparse.ArgumentParser(description="Calculate moment magnitude in full LQT component.")
     parser.add_argument("--wave-dir", type=Path, default="data/waveforms", help="Path to wavefrom directory")
     parser.add_argument("--cal-dir", type=Path, default="data/calibration", help="Path to the calibration directory")
     parser.add_argument("--fig-dir", type=Path, default="figures", help="Path to save figures")
@@ -73,7 +73,6 @@ def main(args=None):
     mw_fitting_df.to_excel(args.output_dir/ f"{output_name}_fitting_result.xlsx", index = False)
     
     return None
-
 
 if __name__ == "__main__" :
     main()
