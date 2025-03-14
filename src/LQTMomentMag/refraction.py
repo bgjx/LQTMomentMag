@@ -24,7 +24,7 @@ References:
 
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 import numpy as np
 from obspy.geodetics import gps2dist_azimuth
@@ -49,7 +49,7 @@ def build_raw_model(layer_boundaries: List[List[float]], velocities: List) -> Li
     """
 
     if len(layer_boundaries) != len(velocities):
-        raise ValueError("Length of layer_boundaries must match velociites")
+        raise ValueError("Length of layer_boundaries must match velocites")
     model = []
     for (top_km, bottom_km), velocity_km_s in zip(layer_boundaries, velocities):
         top_m = top_km*-1000
@@ -118,22 +118,22 @@ def downward_model(hypo_depth_m: float, raw_model: List[List[float]]) -> List[Li
    
    
 def up_refract(epi_dist_m: float, 
-                up_model: List[List[float]], 
-                take_off: np.ndarray
+                up_model: List[List[float]],
+                take_off: Optional[float] = None
                 ) -> Tuple[Dict[str, List], float]:
     """
-    Calculate the refracted angle (relative to the normal line), the cumulative distance traveled, 
-    and the total travel time for all layers based on the direct upward refracted wave.
+    Calculate refracted angles, distances, and travel times for upward refracted waves.
+    If take_off is provided, use it; otherwise, compute it using root-finding.
 
     Args:
-        epi_dist_m (float): Epicenter distance in m.
-        up_model (List[List[float]]): List of sublists containing modified raw model results from the 'upward_model' function.
-        angles (np.ndarray): A numpy array of pre-defined angles for a grid search.
+        epi_dist_m (float): Epicentral distance in meters.
+        up_model (List[List[float]]): List of [top_m, thickness_m, velocity_m_s], ordered top-down.
+        take_off (Optional[float]): User-spesified take-off angle input in degrees; if None, computed via brentq.
 
     Returns:
         Tuple[Dict[str, List], float]:
             - result (Dict[str, List]): A dictionary mapping take-off angles to {'refract_angles': [], 'distances': [], 'travel_times': []}.
-            - take_off (float): The take-off angle (degrees) of the refracted wave reaches the station.
+            - take_off (float): The computed take-off angle (degrees) of the refracted-wave reaches the station.
         
     """
 
@@ -144,7 +144,7 @@ def up_refract(epi_dist_m: float,
     def distance_error(take_off_angle: float) -> float:
         """ Compute the difference between cumulative distance and epi_dist_m."""
         angles = np.zeros(len(thicknesses))
-        angles[0] - take_off_angle
+        angles[0] = take_off_angle
         for i in range(1, len(thicknesses)):
             angles[i] = np.degrees(np.arcsin(np.sin(np.radians(angles[i - 1])) * velocities[i]/velocities[i-1]))
 
@@ -153,21 +153,26 @@ def up_refract(epi_dist_m: float,
         return np.sum(distances) - epi_dist_m
 
     # Find the take-off angle where distance_error = 0, between 0 and 90 degrees
-    if not take_off:
+    if take_off is None:
         take_off = brentq(distance_error, 0.01, 89.99)
+    else:
+        if not 0 <= take_off < 90:
+            raise ValueError("The take_off angle must be between 0 and 90 degrees.")
     
     # Compute full ray path (vectorized computing)
     angles = np.zeros(len(thicknesses))
     angles[0] = take_off
-
     for i in range(1, len(angles)):
         angles[i] = np.degrees(np.arcsin(np.sin(np.radians(angles[i - 1])) * velocities[i]/velocities[i-1]))
+    
+    # Vectorized distance and travel time calculation
     distances = np.tan(np.radians(angles)) * np.abs(thicknesses)
     travel_times = np.abs(thicknesses)/(np.cos(np.radians(angles))*velocities)
+    cumulative_distances = np.cumsum(distances)
 
     result = {
         "refract_angles": angles.tolist(),
-        "distances": np.cumsum(distances).tolist(),
+        "distances": cumulative_distances.tolist(),
         "travel_times": travel_times.tolist(),
     }
 
