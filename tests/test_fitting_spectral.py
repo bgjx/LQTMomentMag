@@ -4,7 +4,6 @@ import pytest
 import numpy as np
 
 from LQTMomentMag.fitting_spectral import fit_spectrum_qmc
-
 from LQTMomentMag.config import CONFIG
 
 
@@ -25,3 +24,5 @@ def test_fit_spectrum(sample_spectrum):
     assert isinstance(q_factor, float)
     assert isinstance(f_c, float)
     assert 7 < f_c < 60
+
+

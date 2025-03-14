@@ -112,7 +112,6 @@ def main(args=None):
         if not path.exists():
             raise FileNotFoundError(f"Path not found: {path}")
     args.output_dir.mkdir(parents=True, exist_ok=True)
-
     conmbined_dataframe = build_catalog(args.hypo_file, args.pick_file, args.station_file, args.network)
     conmbined_dataframe.to_excel(args.output_dir/ f"combined_catalog.xlsx", index=False)
     return None
