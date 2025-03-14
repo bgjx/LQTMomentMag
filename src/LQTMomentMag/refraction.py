@@ -27,7 +27,8 @@ References:
 from typing import Dict, List, Tuple
 from pathlib import Path
 import numpy as np
-from obspy.geodetics import gps2dist_azimuth  
+from obspy.geodetics import gps2dist_azimuth
+from scipy.optimize import brentq
 
 from .plotting import plot_rays
 from .config import CONFIG
@@ -116,9 +117,9 @@ def downward_model(hypo_depth_m: float, raw_model: List[List[float]]) -> List[Li
     return modified_model
    
    
-def up_refract (epi_dist_m: float, 
+def up_refract(epi_dist_m: float, 
                 up_model: List[List[float]], 
-                angles_deg: np.ndarray
+                take_off: np.ndarray
                 ) -> Tuple[Dict[str, List], float]:
     """
     Calculate the refracted angle (relative to the normal line), the cumulative distance traveled, 
@@ -131,34 +132,46 @@ def up_refract (epi_dist_m: float,
 
     Returns:
         Tuple[Dict[str, List], float]:
-            - result (Dict[str, List]): A dictionary mapping take-off angles to {'refract_angle': [], 'distance': [], 'tt': []}.
-            - final_take_off (float): The final take-off angle (degrees) of the refracted wave reaches the station.
+            - result (Dict[str, List]): A dictionary mapping take-off angles to {'refract_angles': [], 'distances': [], 'travel_times': []}.
+            - take_off (float): The take-off angle (degrees) of the refracted wave reaches the station.
         
     """
-    result = {}
-    final_take_off = 0.0
-    for angle in angles_deg:
-        data= {"refract_angle": [], "distance": [], "tt": []}
-        cumulative_dist = 0.0
-        current_angle = angle
-        for i in range(len(up_model)-1, -1, -1):
-            thickness = up_model[i][1]
-            velocity =up_model[i][2]          
-            dist = np.tan(np.radians(current_angle))*abs(thickness)  # cumulative distance, in abs since the thickness is in negative
-            tt = abs(thickness)/(np.cos(np.radians(current_angle))*velocity) 
-            cumulative_dist += dist
-            data['refract_angle'].append(current_angle)
-            data['distance'].append(cumulative_dist)
-            data['tt'].append(tt)
-            if cumulative_dist >= epi_dist_m:
-                break
-            if i > 0:
-                current_angle = np.degrees(np.arcsin(np.sin(np.radians(current_angle))*up_model[i - 1][2]/velocity))
-        result[f"take_off_{angle}"] = data
-        if cumulative_dist >= epi_dist_m:
-            final_take_off = angle
-            break
-    return result, final_take_off
+
+    # Convert upmodel to thickness and velocitites array
+    thicknesses = np.array([layer[1] for layer in up_model[::-1]])
+    velocities = np.array([layer[2] for layer in up_model[::-1]])
+
+    def distance_error(take_off_angle: float) -> float:
+        """ Compute the difference between cumulative distance and epi_dist_m."""
+        angles = np.zeros(len(thicknesses))
+        angles[0] - take_off_angle
+        for i in range(1, len(thicknesses)):
+            angles[i] = np.degrees(np.arcsin(np.sin(np.radians(angles[i - 1])) * velocities[i]/velocities[i-1]))
+
+        # Vectorized distance calculation
+        distances = np.tan(np.radians(angles))* np.abs(thicknesses)
+        return np.sum(distances) - epi_dist_m
+
+    # Find the take-off angle where distance_error = 0, between 0 and 90 degrees
+    if not take_off:
+        take_off = brentq(distance_error, 0.01, 89.99)
+    
+    # Compute full ray path (vectorized computing)
+    angles = np.zeros(len(thicknesses))
+    angles[0] = take_off
+
+    for i in range(1, len(angles)):
+        angles[i] = np.degrees(np.arcsin(np.sin(np.radians(angles[i - 1])) * velocities[i]/velocities[i-1]))
+    distances = np.tan(np.radians(angles)) * np.abs(thicknesses)
+    travel_times = np.abs(thicknesses)/(np.cos(np.radians(angles))*velocities)
+
+    result = {
+        "refract_angles": angles.tolist(),
+        "distances": np.cumsum(distances).tolist(),
+        "travel_times": travel_times.tolist(),
+    }
+
+    return {f"take_off_{take_off}": result}, take_off
       
          
 def down_refract(epi_dist_m: float,
@@ -176,7 +189,7 @@ def down_refract(epi_dist_m: float,
 
     Returns:
         Tuple[Dict[str, List], Dict[str, List]]:
-            - Downward segment results (Dict[str, List]): Dict mapping take-off angles to {'refract_angle': [], 'distance': [], 'tt': []}.
+            - Downward segment results (Dict[str, List]): Dict mapping take-off angles to {'refract_angles': [], 'distances': [], 'travel_times': []}.
             - Upward segment results (Dict[str, List]): Dict for second half of critically refracted rays.
     """
     half_dist = epi_dist_m/2
@@ -198,7 +211,7 @@ def down_refract(epi_dist_m: float,
     up_seg_result = {}
     for angle in take_off_angles:
         cumulative_dist = 0.0
-        down_data = {"refract_angle": [], "distance": [], "tt": []}
+        down_data = {"refract_angles": [], "distances": [], "travel_times": []}
         current_angle = angle
         for i in range(len(down_model)):
             thickness = down_model[i][1]
@@ -206,9 +219,9 @@ def down_refract(epi_dist_m: float,
             dist = np.tan(np.radians(current_angle))*abs(thickness)
             tt = abs(thickness)/(np.cos(np.radians(current_angle))*velocity) 
             cumulative_dist += dist
-            down_data['refract_angle'].append(current_angle)
-            down_data['distance'].append(cumulative_dist)
-            down_data['tt'].append(tt)
+            down_data['refract_angles'].append(current_angle)
+            down_data['distances'].append(cumulative_dist)
+            down_data['travel_times'].append(tt)
             if cumulative_dist > half_dist:
                 break
             if i + 1 < len(down_model):
@@ -220,13 +233,13 @@ def down_refract(epi_dist_m: float,
                 up_data, _ = up_refract(epi_dist_m, up_model, np.array([angle]))
                 up_seg_result.update(up_data)
                 try:
-                    dist_up = up_data[f'take_off_{angle}']['distance'][-1]
+                    dist_up = up_data[f'take_off_{angle}']['distances'][-1]
                     dist_critical = epi_dist_m - (2*cumulative_dist) - dist_up   # total flat line length
                     if dist_critical >= 0:
                         tt_critical = (dist_critical / velocity)
-                        down_data['refract_angle'].append(current_angle)
-                        down_data['distance'].append(dist_critical + cumulative_dist)
-                        down_data['tt'].append(tt_critical)
+                        down_data['refract_angles'].append(current_angle)
+                        down_data['distances'].append(dist_critical + cumulative_dist)
+                        down_data['travel_times'].append(tt_critical)
                 except IndexError:
                     pass
                 break               
@@ -275,17 +288,17 @@ def calculate_inc_angle(hypo: List[float],
     
     # result from direct upward refracted wave only
     last_ray = up_ref[f"take_off_{final_take_off}"]
-    take_off_upward_refract = 180 - last_ray['refract_angle'][0]
-    upward_refract_tt = np.sum(last_ray['tt'])
-    upward_incidence_angle = last_ray['refract_angle'][-1]
+    take_off_upward_refract = 180 - last_ray['refract_angles'][0]
+    upward_refract_tt = np.sum(last_ray['travel_times'])
+    upward_incidence_angle = last_ray['refract_angles'][-1]
 
     critical_ref = {} # list of downward critically refracted ray (take_off_angle, total_tt, incidence_angle)
     for take_off_key in down_ref:
-        if down_ref[take_off_key]["refract_angle"][-1] == 90:
-            tt_down = sum(down_ref[take_off_key]['tt'])
-            tt_up_seg = sum(down_up_ref[take_off_key]['tt'])
+        if down_ref[take_off_key]["refract_angles"][-1] == 90:
+            tt_down = sum(down_ref[take_off_key]['travel_times'])
+            tt_up_seg = sum(down_up_ref[take_off_key]['travel_times'])
             total_tt = tt_down + tt_up_seg
-            inc_angle = down_up_ref[take_off_key]["refract_angle"][-1]
+            inc_angle = down_up_ref[take_off_key]["refract_angles"][-1]
             critical_ref[take_off_key] = {"total_tt": [total_tt], "incidence_angle": [inc_angle]}
     if critical_ref:
         fastest_tt = min(data["total_tt"][0] for data in critical_ref.values())
