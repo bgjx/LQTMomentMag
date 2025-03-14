@@ -50,51 +50,53 @@ def build_catalog(
     picking_df = pd.read_excel(picks_path, index_col=None)
     station_df = pd.read_excel(station_path, index_col=None)
 
-    combined_df = pd.DataFrame(
-            column = [
-        "network", "event_id", "source_lat", "source_lon", "source_depth_m", "source_origin_time", "station_code", "station_lat", "station_lon", "station_elev_m", "p_arr_time", "p_onset", "p_polarity", "s_arr_time", "remarks"
-    ])
-
+    rows = []
     for id in hypo_df.get("id"):
         pick_data = picking_df[picking_df["id"] == id]
         if pick_data.empty:
             continue
         hypo_info = hypo_df[hypo_df.id == id].iloc[0]
-        _id, source_lat, source_lon, source_depth_m, year, month, day, hour, minute, t0, hypo_remarks = hypo_info.id, hypo_info.lat, hypo_info.lon, hypo_info.depth, hypo_info.year, hypo_info.month, hypo_info.day, hypo_info.hour, hypo_info.minute, hypo_info.t0, hypo_info.remarks
+        _id, source_lat, source_lon, source_depth_m, year, month, day, hour, minute, t0, hypo_remarks = hypo_info.id, hypo_info.lat, hypo_info.lon, hypo_info.depth, hypo_info.year, hypo_info.month, hypo_info.day, hypo_info.hour, hypo_info.minute, hypo_info.t_0, hypo_info.remarks
         int_t0 = int(t0)
         microsecond = int((t0 - int_t0)*1e6)
         source_origin_time =datetime(int(year), int(month), int(day), int(hour), int(minute), int_t0, microsecond)
-        for station in pick_data.get("station"):
-            station_df = station_df[station_df.station_code == station]
-            if station_df.empty:
+        for station in pick_data.get("station_code"):
+            station_data = station_df[station_df.station_code == station]
+            if station_data.empty:
                 continue
-            station_info = station_df.iloc[0]
+            station_info = station_data.iloc[0]
             station_code, station_lat, station_lon, station_elev = station_info.station_code, station_info.lat, station_info.lon, station_info.elev
-
-            pick_data= pick_data[pick_data.station_code == station]
-            if pick_data.empty:
+            
+            pick_data_subset= pick_data[pick_data.station_code == station]
+            if pick_data_subset.empty:
                 continue
-            pick_info = pick_data.iloc[0]
-            year, month, day, hour, minute_p, second_p, p_onset, p_polarity, minute_s, second_s= pick_info.year, pick_info.Month, pick_info.day, pick_info.hour, pick_info.minutes_p, pick_info.p_arr_sec, pick_info.p_onset, pick_info.p_polarity, pick_info.minute_s, pick_info.s_arr_sec
+            pick_info = pick_data_subset.iloc[0]
+            year, month, day, hour, minute_p, second_p, p_onset, p_polarity, minute_s, second_s = pick_info.year, pick_info.month, pick_info.day, pick_info.hour, pick_info.minute_p, pick_info.p_arr_sec, pick_info.p_onset, pick_info.p_polarity, pick_info.minute_s, pick_info.s_arr_sec
             int_p_second = int(second_p)
             microsecond_p = int((second_p - int_p_second)*1e6)
             int_s_second = int(second_s)
             microsecond_s = int((second_s - int_s_second)*1e6)
             p_arr_time = datetime(year, month, day, hour, minute_p, int_p_second, microsecond_p)
             s_arr_time = datetime(year, month, day, hour, minute_s, int_s_second, microsecond_s)
-
             row = {
-                "network": network, "event_id": id, "source_lat": source_lat, 
-                "source_lon": source_lon, "source_depth_m": source_depth_m,
-                "source_origin_time": source_origin_time, "station_code": station_code,
-                "station_lat": station_lat, "station_lon": station_lon, 
-                "station_elev_m": station_elev, "p_arr_time": p_arr_time,
-                "p_onset": p_onset, "p_polarity": p_polarity,
-                "s_arr_time": s_arr_time, "remarks": hypo_remarks
+                "network": network,
+                "event_id": id,
+                "source_lat": source_lat, 
+                "source_lon": source_lon,
+                "source_depth_m": source_depth_m,
+                "source_origin_time": source_origin_time,
+                "station_code": station_code,
+                "station_lat": station_lat,
+                "station_lon": station_lon, 
+                "station_elev_m": station_elev,
+                "p_arr_time": p_arr_time,
+                "p_onset": p_onset,
+                "p_polarity": p_polarity,
+                "s_arr_time": s_arr_time,
+                "remarks": hypo_remarks
             }
-            row_df = pd.DataFrame(row)
-            combined_df = pd.concat([combined_df, row_df], ignore_index=True)
-    return combined_df
+            rows.append(row)
+    return pd.DataFrame(rows)
 
 def main(args=None):
     """  Runs the catalog builder from command line or interactive input  """
@@ -103,7 +105,7 @@ def main(args=None):
     parser.add_argument("--pick-file", type=Path, default="tests/sample_tests_data/catalog/picking_catalog.xlsx", help="Arrival picking data file")
     parser.add_argument("--station-file", type=Path, default="tests/sample_tests_data/station/station.xlsx", help="Station data file")
     parser.add_argument("--output-dir", type=Path, default="built_catalog", help="Output directory for results")
-    parser.add_argument("--network", type=Path, default="LQTID", help="Network code (default: LQTID)")
+    parser.add_argument("--network", type=str, default="LQTID", help="Network code (default: LQTID)")
     args = parser.parse_args(args if args is not None else sys.argv[1:])
 
     for path in [args.hypo_file, args.pick_file, args.station_file]:
