@@ -235,7 +235,7 @@ def down_refract(epi_dist_m: float,
                 current_angle = np.degrees(np.arcsin(sin_emit))            
             elif sin_emit == 1:
                 current_angle = 90.0
-                up_data, _ = up_refract(epi_dist_m, up_model, np.array([angle]))
+                up_data, _ = up_refract(epi_dist_m, up_model, angle)
                 up_seg_result.update(up_data)
                 try:
                     dist_up = up_data[f'take_off_{angle}']['distances'][-1]
@@ -276,7 +276,6 @@ def calculate_inc_angle(hypo: List[float],
     Returns:
         Tuple[float, float, float]: take-off angle, total travel time and incidence angle.
     """
-    ANGLE_RESOLUTION = np.linspace(0, 90, 1000) # set grid resolution for direct upward refracted wave
     # initialize hypocenter, station, model, and calculate the epicentral distance
     hypo_lat,hypo_lon, hypo_depth_m = hypo
     sta_lat, sta_lon, sta_elev_m = station
@@ -288,7 +287,7 @@ def calculate_inc_angle(hypo: List[float],
     down_model = downward_model(hypo_depth_m, raw_model.copy())
     
     #  start calculating all refracted waves for all layers they may propagate through
-    up_ref, final_take_off = up_refract(epicentral_distance, up_model, ANGLE_RESOLUTION)
+    up_ref, final_take_off = up_refract(epicentral_distance, up_model)
     down_ref, down_up_ref = down_refract(epicentral_distance, up_model, down_model)
     
     # result from direct upward refracted wave only

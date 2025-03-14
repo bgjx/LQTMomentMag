@@ -128,10 +128,10 @@ def plot_rays (hypo_depth_m: float,
         base_model (List[List[float]]): List of [top_m, thickness_m, velocity_m_s]
         up_model (List[List]): List of [top_m, thickness_m, velocity_m_s] from the 'upward_model' function.
         down_model (List[List]): List of [top_m, thickness_m, velocity_m_s] from the 'downward_model' function.
-        reached_up_ref (Dict[str, List]): A dictionary of {'refract_angle': [], 'distance': [], 'tt': []} from all direct upward refracted waves that reach the station.
-        critical_ref (Dict[str, List]): A dictionary of {'refract_angle': [], 'distance': [], 'tt': []} from all critically refracted waves.
-        down_ref (Dict[str, List]): A dictionary of {'refract_angle': [], 'distance': [], 'tt': []} from all downward segments of critically refracted waves.
-        down_up_ref (Dict[str, List]): A dictionary of {'refract_angle': [], 'distance': [], 'tt': []} from all upward segments of downward critically refracted waves.
+        reached_up_ref (Dict[str, List]): A dictionary of {'refract_angles': [], 'distances': [], 'travel_times': []} from all direct upward refracted waves that reach the station.
+        critical_ref (Dict[str, List]): A dictionary of {'refract_angles': [], 'distances': [], 'travel_times': []} from all critically refracted waves.
+        down_ref (Dict[str, List]): A dictionary of {'refract_angles': [], 'distances': [], 'travel_times': []} from all downward segments of critically refracted waves.
+        down_up_ref (Dict[str, List]): A dictionary of {'refract_angles': [], 'distances': [], 'travel_times': []} from all upward segments of downward critically refracted waves.
         epi_dist_m (float): Epicenter distance in m.
         figure_path(Path): Directory to save the plot.
     """
@@ -150,7 +150,7 @@ def plot_rays (hypo_depth_m: float,
     
     # Plot only the last ray of direct upward wave that reaches the station
     x, y = 0, hypo_depth_m
-    for dist, layer in zip(reached_up_ref['distance'], reversed(up_model)):
+    for dist, layer in zip(reached_up_ref['distances'], reversed(up_model)):
         x_next = dist
         y_next = layer[0]
         axs.plot([x, x_next], [y, y_next], 'k')
@@ -159,13 +159,13 @@ def plot_rays (hypo_depth_m: float,
     
     for take_off in critical_ref:
         x, y = 0, hypo_depth_m
-        for i , (dist, angle) in enumerate(zip(down_ref[take_off]['distance'], down_ref[take_off]['refract_angle'])):
+        for i , (dist, angle) in enumerate(zip(down_ref[take_off]['distances'], down_ref[take_off]['refract_angles'])):
             x_next = dist
             y_next = down_model[i][0] if i == 0 else down_model[i - 1][0] + down_model[i - 1][1]
             axs.plot([x, x_next], [y,y_next], 'b')
             x, y = x_next, y_next
             if angle == 90:
-                for j, dist_up in enumerate(down_up_ref[take_off]['distance']):
+                for j, dist_up in enumerate(down_up_ref[take_off]['distances']):
                     x_next = x + dist_up
                     y_next = up_model[-j - 1][0]
                     axs.plot([x,x_next], [y, y_next], 'b')

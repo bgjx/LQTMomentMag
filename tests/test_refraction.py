@@ -65,14 +65,13 @@ def test_up_refract(sample_model):
     hypo_depth_m = 200
     sta_elev_m = 2200
     epi_dist_m = 4332.291
-    angles_deg = np.linspace(0, 90, 1000)
     up_model = upward_model(hypo_depth_m, sta_elev_m, sample_model.copy())
-    result_dict, final_take_off = up_refract(epi_dist_m, up_model, angles_deg)
+    result_dict, final_take_off = up_refract(epi_dist_m, up_model)
     final_key = f"take_off_{final_take_off}"
     assert isinstance(result_dict, dict)
     assert isinstance(final_take_off, float)
-    assert result_dict[final_key]["distance"][-1] >= epi_dist_m
-    assert all(0 <= angle <= 90 for angle in result_dict[final_key]["refract_angle"])
+    assert result_dict[final_key]["distances"][-1] == pytest.approx(epi_dist_m, rel=1e-5)
+    assert all(0 <= angle <= 90 for angle in result_dict[final_key]["refract_angles"])
 
 
 def test_calculate_inc_ange(test_data, tmp_path):
