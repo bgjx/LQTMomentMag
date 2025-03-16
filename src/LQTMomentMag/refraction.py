@@ -33,6 +33,9 @@ from scipy.optimize import brentq
 from .plotting import plot_rays
 from .config import CONFIG
 
+
+# Global parameters
+ANGLE_BOUNDS = (0.01, 89.99)
 def build_raw_model(layer_boundaries: List[List[float]], velocities: List) -> List[List[float]]:
     """
     Build a model of layers from the given layer boundaries and velocities.
@@ -72,6 +75,9 @@ def upward_model(hypo_depth_m: float, sta_elev_m: float, raw_model: List[List[fl
     Returns:
         List[List[float]] : List of modified model corrected by station elevation and hypocenter depth.
     """
+
+    if hypo_depth_m >= sta_elev_m:
+        raise ValueError(f"Hypocenter depth {hypo_depth_m} must be below station elevation {sta_elev_m}")
     # correct upper model boundary and last layer thickness
     sta_idx, hypo_idx = -1, -1
     for layer in raw_model:
@@ -154,7 +160,7 @@ def up_refract(epi_dist_m: float,
 
     # Find the take-off angle where distance_error = 0, between 0 and 90 degrees
     if take_off is None:
-        take_off = brentq(distance_error, 0.01, 89.99)
+        take_off = brentq(distance_error, *ANGLE_BOUNDS)
     else:
         if not 0 <= take_off < 90:
             raise ValueError("The take_off angle must be between 0 and 90 degrees.")
@@ -198,12 +204,13 @@ def down_refract(epi_dist_m: float,
             - Upward segment results (Dict[str, List]): Dict for second half of critically refracted rays.
     """
     half_dist = epi_dist_m/2
+    thicknesses = np.array([layer[1] for layer in down_model])
+    velocities = np.array(layer[2] for layer in down_model)
+
     critical_angles = []
     if len(down_model) > 1:
-        for i in range(len(down_model) - 1):
-            critical_angles.append(np.degrees(np.arcsin(down_model[i][2]/down_model[i+1][2])))
-
-    # find the first take-off angle for every critical angle
+        critical_angles = np.degrees(np.arcsin(velocities[:-1]/velocities[1:])).tolist()
+    
     take_off_angles=[]
     for i, crit_angle in enumerate(critical_angles):
         angle = crit_angle
@@ -215,42 +222,56 @@ def down_refract(epi_dist_m: float,
     down_seg_result = {}
     up_seg_result = {}
     for angle in take_off_angles:
+        angles = [angle]
+        distances = []
+        travel_times = []
         cumulative_dist = 0.0
-        down_data = {"refract_angles": [], "distances": [], "travel_times": []}
-        current_angle = angle
-        for i in range(len(down_model)):
-            thickness = down_model[i][1]
-            velocity = down_model[i][2]
+
+        for i in range(len(thicknesses)):
+            thickness = thicknesses[i]
+            velocity = velocities[i]
+            current_angle = angles[-1]
+
             dist = np.tan(np.radians(current_angle))*abs(thickness)
-            tt = abs(thickness)/(np.cos(np.radians(current_angle))*velocity) 
+            tt = abs(thickness) / (np.cos(np.radians(current_angle))*velocity)
             cumulative_dist += dist
-            down_data['refract_angles'].append(current_angle)
-            down_data['distances'].append(cumulative_dist)
-            down_data['travel_times'].append(tt)
+
+            distances.append(dist)
+            travel_times.append(tt)
+
             if cumulative_dist > half_dist:
                 break
-            if i + 1 < len(down_model):
-                sin_emit = np.sin(np.radians(current_angle))*down_model[i+1][2]/velocity
-            if sin_emit < 1:
-                current_angle = np.degrees(np.arcsin(sin_emit))            
-            elif sin_emit == 1:
-                current_angle = 90.0
-                up_data, _ = up_refract(epi_dist_m, up_model, angle)
-                up_seg_result.update(up_data)
-                try:
-                    dist_up = up_data[f'take_off_{angle}']['distances'][-1]
-                    dist_critical = epi_dist_m - (2*cumulative_dist) - dist_up   # total flat line length
-                    if dist_critical >= 0:
-                        tt_critical = (dist_critical / velocity)
-                        down_data['refract_angles'].append(current_angle)
-                        down_data['distances'].append(dist_critical + cumulative_dist)
-                        down_data['travel_times'].append(tt_critical)
-                except IndexError:
-                    pass
-                break               
-            else:
-                break
+            
+            if i + 1 < len(thicknesses):
+                sin_next = np.sin(np.radians(current_angle)) * velocities[i+1] / velocities[i]
+                if sin_next < 1:
+                    angles.append(np.degrees(np.arcsin(sin_next)))
+                elif sin_next == 1:
+                    angles.append(90.0)
+                    break
+                else:
+                    break
+        
+        cumulative_distances = np.cumsum(distances).tolist()
+        down_data = {
+            "refract_angles": angles,
+            "distances": cumulative_distances,
+            "travel_times": travel_times
+        }
+
         down_seg_result[f"take_off_{angle}"] = down_data
+
+        if angles[-1] == 90.0:
+            up_data, _ = up_refract(epi_dist_m, up_model, angle)
+            up_seg_result.update(up_data)
+            dist_up = up_data[f"take_off_{angle}"]["distances"][-1]
+            dist_critical = epi_dist_m - (2 * cumulative_distances[-1]) - dist_up
+            if dist_critical >= 0:
+                tt_critical = dist_critical / velocities[len(angles) - 1]
+                down_data["refract_angles"].append(90.0)
+                down_data["distances"].append(dist_critical + cumulative_distances[-1])
+                down_data["travel_times"].append(tt_critical)
+
     return  down_seg_result, up_seg_result
 
 
