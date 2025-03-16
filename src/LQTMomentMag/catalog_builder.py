@@ -23,7 +23,9 @@ import argparse
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-import csv
+
+from obspy.geodetics import gps2dist_azimuth
+
 
 
 def build_catalog(
@@ -67,6 +69,10 @@ def build_catalog(
             station_info = station_data.iloc[0]
             station_code, station_lat, station_lon, station_elev = station_info.station_code, station_info.lat, station_info.lon, station_info.elev
             
+            # cek earthquake distance to determine earthquake type
+            epicentral_distance, _, _ = gps2dist_azimuth(source_lat, source_lon, station_lat, station_lon)
+            earthquake_type = "very_local_earthquake" if epicentral_distance < 30 else "local_earthquake" if  30 <= epicentral_distance <300 else "regional_earthquake" if 300 <= epicentral_distance < 1000 else "teleseismic_earthquake"
+
             pick_data_subset= pick_data[pick_data.station_code == station]
             if pick_data_subset.empty:
                 continue
@@ -93,6 +99,7 @@ def build_catalog(
                 "p_onset": p_onset,
                 "p_polarity": p_polarity,
                 "s_arr_time": s_arr_time,
+                "earthquake_type": earthquake_type,
                 "remarks": hypo_remarks
             }
             rows.append(row)
