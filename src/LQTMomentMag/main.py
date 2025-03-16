@@ -43,13 +43,11 @@ def main(args=None):
     parser.add_argument("--wave-dir", type=Path, default="data/waveforms", help="Path to wavefrom directory")
     parser.add_argument("--cal-dir", type=Path, default="data/calibration", help="Path to the calibration directory")
     parser.add_argument("--fig-dir", type=Path, default="figures", help="Path to save figures")
-    parser.add_argument("--hypo-file", type=Path, default="data/hypocenter/hypo_sample.xlsx", help="Hypocenter data file")
-    parser.add_argument("--pick-file", type=Path, default="data/picks/picks_sample.xlsx", help="Arrival picking data file")
-    parser.add_argument("--station-file", type=Path, default="data/stations/stations_sample.xlsx", help="Station data file")
+    parser.add_argument("--catalog-file", type=Path, default="data/catalog/lqt_catalog.xlsx", help="LQT Catalog file")
     parser.add_argument("--output-dir", type=Path, default="results", help="Output directory for results")
     args = parser.parse_args(args if args is not None else sys.argv[1:])
 
-    for path in [args.wave_dir, args.cal_dir, args.hypo_file, args.pick_file, args.station_file]:
+    for path in [args.wave_dir, args.cal_dir, args.catalog_file]:
         if not path.exists():
             raise FileNotFoundError(f"Path not found: {path}")
     
@@ -57,16 +55,12 @@ def main(args=None):
     args.output_dir.mkdir(parents=True, exist_ok=True)
             
     # preload all the excel file
-    hypo_df = pd.read_excel(args.hypo_file, index_col=None)
-    pick_df = pd.read_excel(args.pick_file, index_col=None)
-    station_df = pd.read_excel(args.station_file, index_col=None)
-
-    if any(False for data in [hypo_df, pick_df, station_df] if data.empty):
+    catalog_df = pd.read_excel(args.catalog_file, index_col=None)
+    if catalog_df.empty:
         logger.warning(f"Cannot process empty dataframes, please check your data again.")
         
     # Call the function to start calculating moment magnitude
-    mw_result_df, mw_fitting_df, output_name = start_calculate(args.wave_dir, args.cal_dir, args.fig_dir, 
-                                                               hypo_df, pick_df, station_df)
+    mw_result_df, mw_fitting_df, output_name = start_calculate(args.wave_dir, args.cal_dir, args.fig_dir, catalog_df)
 
     # save and set dataframe index
     mw_result_df.to_excel(args.output_dir / f"{output_name}_result.xlsx", index = False)
