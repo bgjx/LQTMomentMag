@@ -8,7 +8,7 @@ setup(
     version="1.0.0",
     author= "Arham Zakki Edelo",
     author_email= "edelo.arham@gmail.com",
-    description= "Calculate seismic moment magnitude in full LQT energy for very local earthquake case",
+    description= "Calculate seismic moment magnitude in full LQT energy components",
     long_description= long_description,
     long_description_content_type="text/markdown",
     url = "https://github.com/bgjx/LQTMomentMag",
@@ -25,6 +25,7 @@ setup(
         "tqdm>=4.64.0",
         "configparser>=5.2.0",
     ],
+    tests_requires = ["pytest>=7.0.0"],
     entry_points={
         "console_scripts": [
             "LQTMwcalc = LQTMomentMag.main:main",
@@ -35,5 +36,7 @@ setup(
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
+        "Topic:: Scientific/Engineering :: Physics",
+        "Intended Audience :: Science/Research",
     ],
 )
