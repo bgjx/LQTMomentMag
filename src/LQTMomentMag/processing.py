@@ -146,7 +146,8 @@ def calculate_moment_magnitude(
     calibration_path: Path, 
     event_id: int, 
     figure_path: Path, 
-    figure_statement: bool = False
+    figure_statement: bool = False,
+    lqt_mode: bool = True
     ) -> Tuple[Dict[str, str], Dict[str,List]]:
     
     """
@@ -160,7 +161,8 @@ def calculate_moment_magnitude(
         calibration_path (Path): Path to the calibration files for instrument response removal.
         event_id (int): Unique identifier for the earthquake event.
         figure_path (Path): Path to save the generated figures.
-        figure_statement (bool): Whether to generate and save figures (default is False).
+        figure_statement (bool): Boolean statement to generate and save figures (default is False).
+        lqt_mode (bool): Boolean statement to calculate magnitude in LQT mode (default is True)
 
     Returns:
         Tuple[Dict[str, str], Dict[str, List]]:
@@ -472,7 +474,7 @@ def start_calculate(
             else:
                 try:
                     # Calculate the moment magnitude
-                    mw_results, fitting_result = calculate_moment_magnitude(wave_path, hypo_data_handler, pick_data_handler, station_data, calibration_path, event_id, figure_path, figure_statement)
+                    mw_results, fitting_result = calculate_moment_magnitude(wave_path, hypo_data_handler, pick_data_handler, station_data, calibration_path, event_id, figure_path, figure_statement, lqt_mode)
 
                     # Create the dataframe from calculate_ml_magnitude results
                     mw_magnitude_result = pd.DataFrame.from_dict(mw_results)
