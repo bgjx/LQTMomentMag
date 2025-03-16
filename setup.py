@@ -28,7 +28,7 @@ setup(
     tests_requires = ["pytest>=7.0.0"],
     entry_points={
         "console_scripts": [
-            "LQTMwcalc = LQTMomentMag.main:main",
+            "LQTMwCalc = LQTMomentMag.main:main",
         ]
     },
     python_requires = ">=3.8",
