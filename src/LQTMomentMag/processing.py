@@ -435,7 +435,7 @@ def start_calculate(
         sys.stdout.write("Process the program ....\n")
     
     # Get the user input.
-    id_start, id_end, mw_output, figure_statement = get_user_input()
+    id_start, id_end, mw_output, figure_statement, lqt_mode = get_user_input()
 
     # Initiate dataframe for magnitude calculation results
     df_result   = pd.DataFrame(

@@ -71,13 +71,20 @@ def get_user_input() -> Tuple[int, int, str, bool]:
         if not any(c in mw_output for c in r'<>:"/\\|?*'):
             break
         print("Enter a valid filename without special characters")
-        
+
+    while True:
+        lqt_mode = input("Do you want to calculate all earthquakes in LQT mode regardless the source distance? [yes/no], if [no] let this program decide:").strip().lower()
+        if lqt_mode in ['yes', 'no']:
+            lqt_mode = (lqt_mode == "yes")
+            break
+        print("Please enter 'yes' or 'no'")
+
     while True:
         figure_statement = input("Do you want to produce the spectral fitting figures [yes/no]?: ").strip().lower()
         if figure_statement in ['yes', 'no']:
             figure_statement = (figure_statement == 'yes')
             break
-        print("Pleases enter 'yes' or 'no'")
+        print("Please enter 'yes' or 'no'")
         
     return id_start, id_end, mw_output, figure_statement
 
