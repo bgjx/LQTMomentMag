@@ -410,9 +410,7 @@ def start_calculate(
     wave_path: Path,
     calibration_path: Path,
     figure_path: Path,
-    hypo_data: pd.DataFrame,
-    pick_data: pd.DataFrame,
-    station_data: pd.DataFrame
+    catalog_data: pd.DataFrame
     ) -> Tuple [pd.DataFrame, pd.DataFrame, str]:
 
     """
@@ -422,9 +420,7 @@ def start_calculate(
         wave_path (Path): Path to the waveforms file.
         calibration_path (Path) : Path to the calibration file (.RESP format).
         figure_path (Path) : Path to the directory where the image of peak-to-peak amplitude will be stored.
-        hypo_data (pd.DataFrame): Dataframe of hypocenter catalog.
-        pick_data (pd.DataFrame): Dataframe of detail data picking.
-        station_data (pd.DataFrame) : Dataframe of stations.
+        catalog_data (pd.DataFrame): Dataframe of LQT formatted catalog.
         
     Returns:
         Tuple [pd.Dataframe, pd.DataFrame, str]: DataFrames for magnitude results and fitting results, and the output file name.

@@ -58,7 +58,7 @@ def build_catalog(
         if pick_data.empty:
             continue
         hypo_info = hypo_df[hypo_df.id == id].iloc[0]
-        _id, source_lat, source_lon, source_depth_m, year, month, day, hour, minute, t0, hypo_remarks = hypo_info.id, hypo_info.lat, hypo_info.lon, hypo_info.depth, hypo_info.year, hypo_info.month, hypo_info.day, hypo_info.hour, hypo_info.minute, hypo_info.t_0, hypo_info.remarks
+        source_lat, source_lon, source_depth_m, year, month, day, hour, minute, t0, hypo_remarks = hypo_info.lat, hypo_info.lon, hypo_info.depth, hypo_info.year, hypo_info.month, hypo_info.day, hypo_info.hour, hypo_info.minute, hypo_info.t_0, hypo_info.remarks
         int_t0 = int(t0)
         microsecond = int((t0 - int_t0)*1e6)
         source_origin_time =datetime(int(year), int(month), int(day), int(hour), int(minute), int_t0, microsecond)
@@ -87,7 +87,7 @@ def build_catalog(
             s_arr_time = datetime(year, month, day, hour, minute_s, int_s_second, microsecond_s)
             row = {
                 "network": network,
-                "event_id": id,
+                "source_id": id,
                 "source_lat": source_lat, 
                 "source_lon": source_lon,
                 "source_depth_m": source_depth_m,
