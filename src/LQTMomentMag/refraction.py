@@ -205,7 +205,7 @@ def down_refract(epi_dist_m: float,
     """
     half_dist = epi_dist_m/2
     thicknesses = np.array([layer[1] for layer in down_model])
-    velocities = np.array(layer[2] for layer in down_model)
+    velocities = np.array([layer[2] for layer in down_model])
 
     critical_angles = []
     if len(down_model) > 1:
@@ -271,7 +271,6 @@ def down_refract(epi_dist_m: float,
                 down_data["refract_angles"].append(90.0)
                 down_data["distances"].append(dist_critical + cumulative_distances[-1])
                 down_data["travel_times"].append(tt_critical)
-
     return  down_seg_result, up_seg_result
 
 
