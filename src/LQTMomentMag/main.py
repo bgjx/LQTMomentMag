@@ -70,7 +70,7 @@ def main(args: Optional[List[str]] = None) -> None:
         "--wave-dir",
         type=Path,
         default="data/waveforms",
-        help="Path to wavefrom directory")
+        help="Path to waveform directory")
     parser.add_argument(
         "--cal-dir",
         type=Path,
@@ -141,7 +141,7 @@ def main(args: Optional[List[str]] = None) -> None:
         mw_fitting_df.to_excel(args.output_dir/ f"{output_name}_fitting_result.xlsx", index = False)
     except Exception as e:
         logger.error(f"Failed to save results: {e}")
-        raise RuntimeError(f"Failed to save resutls: {e}")
+        raise RuntimeError(f"Failed to save results: {e}")
 
     logger.info(f"Results saved to {args.output_dir}")
     logger.info("Moment magnitude calculation completed successfully.")
