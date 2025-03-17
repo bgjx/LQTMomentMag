@@ -6,6 +6,7 @@ from pathlib import Path
 @dataclass
 class MagnitudeConfig:
     """ Class of magnitude calculation parameters with defaults. """
+    SNR_THRESHOLD: float = 1.5
     WATER_LEVEL: int = 10
     PRE_FILTER: List[float] = None # Initialized in __post_init__
     F_MIN: int = 7
@@ -69,6 +70,7 @@ class Config:
         # load magnitude config section
         if "Magnitude" in config:
             mag_section = config["Magnitude"]
+            self.magnitude.SNR_THRESHOLD = mag_section.getfloat("snr_threshold", fallback=self.magnitude.SNR_THRESHOLD)
             self.magnitude.WATER_LEVEL = mag_section.getint("water_level", fallback=self.magnitude.WATER_LEVEL)
             self.magnitude.PRE_FILTER = [float(x) for x in mag_section.get("pre_filter", fallback="2,5,55,60").split(",")]
             self.magnitude.F_MIN = mag_section.getfloat("f_min", fallback=self.magnitude.F_MIN)
