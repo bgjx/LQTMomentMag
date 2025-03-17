@@ -414,79 +414,138 @@ def start_calculate(
     ) -> Tuple [pd.DataFrame, pd.DataFrame, str]:
 
     """
-    Start the process of moment magnitude calculation.
+    This function processes moment magnitude calculation by iterating over a user-specified range
+    of earthquake IDs. For each event of earthquake, it extracts source and station data, and 
+    computes moment magnitudes using waveform and response file, and aggregates results into
+    two DataFrames: magnitude results and spectral fitting parameters.
     
     Args:
-        wave_path (Path): Path to the waveforms file.
-        calibration_path (Path) : Path to the calibration file (.RESP format).
-        figure_path (Path) : Path to the directory where the image of peak-to-peak amplitude will be stored.
-        catalog_data (pd.DataFrame): Dataframe of LQT formatted catalog.
+        wave_path (Path): Path to the directory containing waveforms file (.miniSEED format).
+        calibration_path (Path) : Path to the directory containing calibration file (.RESP format).
+        figure_path (Path) : Path to the directory where spectral fitting figures will be saved.
+        catalog_data (pd.DataFrame): Catalog DataFrame in LQTMomentMag format.
         
     Returns:
-        Tuple [pd.Dataframe, pd.DataFrame, str]: DataFrames for magnitude results and fitting results, and the output file name.
+        Tuple [pd.Dataframe, pd.DataFrame, str]:
+            - First DataFrame: Magnitude results with columns ['source_id', 'fc_avg', 'fc_std', ...].
+            - Second DataFrame: Fitting results with columns ['source_id', 'station', 'f_corner_p', ...].
+            - Output filename (str) for saving results.
+    
+    Raises:
+        ValueError: If catalog_data is empty or missing required columns.
+    
+    Example:
+        >>> catalog = pd.read_excel("lqt_catalog.xlsx")
+        >>> result_df, fitting_df, output_name = start_calculate(
+        ...     Path("data/waveforms"), Path("data/calibration"),
+        ...     Path("figures"), catalog)
     """
-        
-    prompt=input('Have you change the paths? [yes/no] :').strip().lower()
-    if prompt != 'yes':
-        sys.exit("Ok, please correct the path first!")
-    else:
-        sys.stdout.write("Process the program ....\n")
+    
+    # Validate catalog columns
+    required_columns = [
+        "source_id", "source_lat", "source_lon", "source_depth_m",
+        "source_origin_time", "earthquake_type", "station_code", 
+        "station_lat", "station_lon", "station_elev_m", "p_arr_time",
+        "s_arr_time" 
+    ]
+
+    missing_columns = [col for col in required_columns if col not in catalog_data.columns]
+    if missing_columns:
+        logger.error(f"Catalog missing required columns: {missing_columns}")
+        raise ValueError(f"catalog missing required columns: {missing_columns}")
     
     # Get the user input.
     id_start, id_end, mw_output, figure_statement, lqt_mode = get_user_input()
 
     # Initiate dataframe for magnitude calculation results
-    df_result   = pd.DataFrame(
-                        columns = ["ID", "Fc_avg", "Fc_std", "Src_rad_avg_(m)", "Src_rad_std_(m)", "Stress_drop_(bar)", "Mw_average", "Mw_std"] 
+    df_result = pd.DataFrame(
+            columns=["source_id", "fc_avg", "fc_std", "Src_rad_avg_m",
+                    "Src_rad_std_m", "Stress_drop_bar",
+                    "mw_average", "mw_std"] 
                         )
-    df_fitting  = pd.DataFrame(
-                        columns = ["ID", "Station", "F_corner_P", "F_corner_SV", "F_corner_SH", "Qfactor_P", "Qfactor_SV", "Qfactor_SH", "Omega_0_P_(nms)", "Omega_0_SV_(nms)",  "Omega_0_SH_(nms)", "RMS_e_P_(nms)", "RMS_e_SV_(nms)", "RMS_e_SH_(nms)", "Moment_P_(Nm)", "Moment_S_(Nm)"] 
+    df_fitting = pd.DataFrame(
+            columns=["source_id", "station", "f_corner_p", "f_corner_sv",
+                    "f_corner_sh", "q_factor_p", "q_factor_sv", "q_factor_sh",
+                    "omega_0_P_nms", "omega_0_sv_nms", "omega_0_sh_nms",
+                    "rms_e_p_nms", "rms_e_sv_nms", "rms_e_sh_nms",
+                    "moment_p_Nm", "moment_s_Nm"] 
                         )
 
     failed_events=0
+    result_list = []
+    fitting_list = []
+
+    # Pre-grouping catalog by the id for efficiency
+    grouped_data = catalog_data.groupby("source_id")
+    total_earthquakes = id_end - id_start + 1
     with tqdm(
-        total = id_end - id_start + 1,
+        total = total_earthquakes,
         file=sys.stderr,
         position=0,
         leave=True,
-        desc="Processing events",
+        desc="Processing earthquakes",
         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]",
         ncols=80,
         smoothing=0.1
     ) as pbar:
-        for event_id in range (id_start, id_end + 1):
-            logging.info(f"  Calculate moment magnitude for event ID {event_id} ...")
+        for source_id in range (id_start, id_end + 1):
+            logging.info(f"Earthquake_{source_id}: Calculating moment magnitude for earthquakes ID {source_id}")
             
-            # Get the dataframe 
-            hypo_data_handler   = hypo_data[hypo_data["ID"] == event_id]
-            pick_data_handler   = pick_data[pick_data["Event ID"] == event_id]
-            
-            # Check empty data frame
-            if hypo_data_handler.empty or pick_data_handler.empty:
-                logger.warning(f"Event_{id}: No data for event {event_id}, skipping...")
-                failed_events+=1
+            # Extract data for the current event
+            try:
+                catalog_data_handler = grouped_data.get_group(source_id)
+            except KeyError:
+                logger.warning(f"Earthquake_{source_id}: No data for earthquake ID {source_id}")
+                failed_events += 1
+                pbar.set_postfix({"Failed": failed_events})
+                pbar.update(1)
                 continue
 
-            else:
-                try:
-                    # Calculate the moment magnitude
-                    mw_results, fitting_result = calculate_moment_magnitude(wave_path, hypo_data_handler, pick_data_handler, station_data, calibration_path, event_id, figure_path, figure_statement, lqt_mode)
+            hypo_data_handler = catalog_data_handler[["source_lat", "source_lon", 
+                                                    "source_depth_m", "source_origin_time", 
+                                                    "earthquake_type"]].drop_duplicates()
+            pick_data_handler = catalog_data_handler[["station_code", "station_lat",
+                                                      "station_lon", "station_elev_m",
+                                                      "p_arr_time", "s_arr_time"]].drop_duplicates()
+            
+            # Check for  empty data frame
+            if hypo_data_handler.empty or pick_data_handler.empty:
+                logger.warning(f"Earthquake_{source_id}: No data for earthquake {source_id}")
+                failed_events += 1
+                pbar.set_postfix({"Failed": failed_events})
+                pbar.update(1)
+                continue
 
-                    # Create the dataframe from calculate_ml_magnitude results
-                    mw_magnitude_result = pd.DataFrame.from_dict(mw_results)
-                    mw_fitting_result   = pd.DataFrame.from_dict(fitting_result)
-                    
-                    # Concatinate the dataframe
-                    df_result = pd.concat([df_result, mw_magnitude_result], ignore_index = True)
-                    df_fitting = pd.concat([df_fitting, mw_fitting_result], ignore_index = True)
-                
-                except Exception as e:
-                    logger.warning(f"Event_{event_id}: An error occurred during calculation for event {event_id}, {e}", exc_info=True)
-                    logger.warning(f"  There may be errors during calculation for event {event_id}, check runtime.log file")
-                    failed_events += 1
-                    continue
-                    
+            # Calculate the moment magnitude
+            try:
+                mw_results, fitting_result = calculate_moment_magnitude(
+                                            wave_path, hypo_data_handler,
+                                            pick_data_handler, calibration_path,
+                                            source_id, figure_path,
+                                            figure_statement, lqt_mode
+                                            )
+                result_list.append(pd.DataFrame.from_dict(mw_results))
+                fitting_list.append(pd.DataFrame.from_dict(fitting_result))
+            except (ValueError, IOError) as e:
+                logger.error(
+                    f"Earthquake_{source_id}: Calculation failed for earthquake id {source_id}: {e}",
+                    exc_info=True
+                )
+                failed_events += 1
+                pbar.set_postfix({"Failed": failed_events})
+                pbar.update(1)
+                continue
+
             pbar.set_postfix({"Failed": failed_events})
             pbar.update(1)
-    sys.stdout.write("Finished..., check the runtime.log file for detail of errors that migth've happened during calculation")
+                
+    # Concatenate the dataframe
+    df_result = pd.concat(result_list, ignore_index = True) if result_list else df_result
+    df_fitting = pd.concat(fitting_list, ignore_index = True) if fitting_list else df_fitting
+
+    # Summary message
+    sys.stdout.write(
+        f"Finished. Proceed {total_earthquakes - failed_events} earthquakes successfully,"
+        f"{failed_events} failed. Check runtime.log for details. \n"
+    )
     return df_result, df_fitting, mw_output
