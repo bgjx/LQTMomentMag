@@ -86,7 +86,7 @@ def get_user_input() -> Tuple[int, int, str, bool]:
             break
         print("Please enter 'yes' or 'no'")
         
-    return id_start, id_end, mw_output, figure_statement
+    return id_start, id_end, mw_output, figure_statement, lqt_mode
 
 
 def read_waveforms(path: Path, event_id: int, station:str) -> Stream:
