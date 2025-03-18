@@ -69,7 +69,7 @@ class Config:
         if not config.read(config_file):
             return 
         
-        # load magnitude config section
+        # Load magnitude config section
         if "Magnitude" in config:
             mag_section = config["Magnitude"]
             self.magnitude.SNR_THRESHOLD = mag_section.getfloat("snr_threshold", fallback=self.magnitude.SNR_THRESHOLD)
@@ -91,7 +91,7 @@ class Config:
             self.magnitude.VELOCITY_VS = [float(x) for x in mag_section.get("velocity_vs", fallback="1.60, 1.79, 2.37, 2.69, 2.99, 3.35, 3.47, 3.83, 4.79").split(",")]
             self.magnitude.DENSITY = [float(x) for x in mag_section.get("density", fallback="2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700").split(",")]
 
-        # load spectal config section
+        # Load spectral config section
         if "Spectral" in config:
             spec_section = config["Spectral"]
             self.spectral.F_MIN = spec_section.getfloat("f_min", fallback=self.spectral.F_MIN)
@@ -105,6 +105,6 @@ class Config:
             self.spectral.N_FACTOR = spec_section.getint("n_factor", fallback=self.spectral.N_FACTOR)
             self.spectral.Y_FACTOR = spec_section.getint("y_factor", fallback=self.spectral.Y_FACTOR)
 
-# singleton instance for easy access
+# Singleton instance for easy access
 CONFIG = Config()
 CONFIG.load_from_file()
