@@ -18,8 +18,11 @@ Example:
 
 from .main import main
 from .api import magnitude_estimator, reload_configuration
-# from .processing import calculate_moment_magnitude, start_calculate
-# from .utils import get_user_input, read_waveforms
+from .processing import instrument_remove
+from .utils import read_waveforms
+from .refraction import calculate_inc_angle
+from .fitting_spectral import fit_spectrum_qmc
+
 
 __version__ = "1.0.0"
 __author__ = "Arham Zakki Edelo"
@@ -27,5 +30,9 @@ __email__ = "edelo.arham@gmail.com"
 __all__ = [
     "main",
     "magnitude_estimator",
-    "reload_configuration"
+    "reload_configuration",
+    "calculate_inc_angle",
+    "read_waveforms",
+    "fit_spectrum_qmc",
+    "instrument_remove"
     ]
