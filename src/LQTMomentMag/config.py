@@ -1,25 +1,47 @@
 from dataclasses import dataclass
 from configparser import ConfigParser
-from typing import List
+from typing import List, Tuple
 from pathlib import Path
 
 @dataclass
 class MagnitudeConfig:
-    """ Class of magnitude calculation parameters with defaults. """
+    """
+    
+    Configuration for magnitude calculation parameters.
+
+    Attributes:
+        SNR_THRESHOLD (float): Minimum signal-to-noise ratio for trace acceptance (default: 1.5).
+        WATER_LEVEL (int): Water level for deconvolution stabilization (default: 30).
+        PRE_FILTER (List[float]): Bandpass filter corners [f1,f2,f3,f4] in Hz (default: placeholder, override in config.ini).
+        POST_FILTER_F_MIN (float): Minimum post-filter frequency in Hz (default: 0.1).
+        POST_FILTER_F_MAX (float): Maximum post-filter frequency in Hz (default: 50).
+        PADDING_BEFORE_ARRIVAL (float): Padding before arrival in seconds (default: 0.1).
+        NOISE_DURATION (float): Noise window duration in seconds (default: 0.5).
+        NOISE_PADDING (float): Noise window padding in seconds (default: 0.2).
+        R_PATTERN_P (float): Radiation pattern for P-waves (default: 0.52).
+        R_PATTERN_S (float): Radiation pattern for S-waves (default: 0.63).
+        FREE_SURFACE_FACTOR (float): Free surface amplification factor (default: 2.0).
+        K_P (float): Geometric spreading factor for P-waves (default: 0.32).
+        K_S (float): Geometric spreading factor for S-waves (default: 0.21).
+        LAYER_BOUNDARIES (List[Tuple[float, float]]): Depth boundaries in km (default: placeholder).
+        VELOCITY_VP (List[float]): P-wave velocities in km/s (default: placeholder).
+        VELOCITY_VS (List[float]): S-wave velocities in km/s (default: placeholder).
+        DENSITY (List[float]): Densities in kg/m³ (default: placeholder). 
+    """
     SNR_THRESHOLD: float = 1.5
     WATER_LEVEL: int = 30
-    PRE_FILTER: List[float] = None # Initialized in __post_init__
+    PRE_FILTER: List[float] = None
     POST_FILTER_F_MIN: float = 0.1
     POST_FILTER_F_MAX: float = 50
     PADDING_BEFORE_ARRIVAL: float = 0.1
     NOISE_DURATION: float = 0.5
     NOISE_PADDING: float = 0.2
-    R_PATTERN_P: float = 0.44
-    R_PATTERN_S: float = 0.60
+    R_PATTERN_P: float = 0.52
+    R_PATTERN_S: float = 0.63
     FREE_SURFACE_FACTOR: float = 2.0
     K_P: float = 0.32
     K_S: float = 0.21
-    LAYER_BOUNDARIES: List[List[float]] = None # Initialized in __post_init_
+    LAYER_BOUNDARIES: List[List[float]] = None 
     VELOCITY_VP: List[float] = None
     VELOCITY_VS: List[float] = None
     DENSITY: List[float] = None
@@ -42,10 +64,24 @@ class MagnitudeConfig:
 
 @dataclass
 class SpectralConfig:
-    """ Class of spectral fitting parameters with defaults. """
+    """
+    Configuration for spectral fitting parameters.
+    
+    Attributes:
+        F_MIN (float): Minimum frequency for fitting in Hz (default: 1.0).
+        F_MAX (float): Maximum frequency for fitting in Hz (default: 45.0).
+        OMEGA_0_RANGE_MIN (float): Minimum Omega_0 in meters (default: 0.01).
+        OMEGA_0_RANGE_MAX (float): Maximum Omega_0 in meters (default: 2000.0).
+        Q_RANGE_MIN (float): Minimum quality factor Q (default: 50.0).
+        Q_RANGE_MAX (float): Maximum quality factor Q (default: 250.0).
+        FC_RANGE_BUFFER (float): Buffer factor for corner frequency range (default: 2.0).
+        DEFAULT_N_SAMPLES (int): Default number for stochastic random sampling (default: 3000).
+        N_FACTOR (int): Brune model n factor (default: 2).
+        Y_FACTOR (int): Brune model y factor (default: 1).
+    """
     F_MIN: float = 1.0
     F_MAX: float = 45.0
-    OMEGA_0_RANGE_MIN: float = 0.1
+    OMEGA_0_RANGE_MIN: float = 0.01
     OMEGA_0_RANGE_MAX: float = 2000.0
     Q_RANGE_MIN: float = 50.0
     Q_RANGE_MAX: float = 250.0
@@ -54,9 +90,19 @@ class SpectralConfig:
     N_FACTOR: int = 2
     Y_FACTOR: int = 1
 
+@dataclass
+class PerformanceConfig:
+    """
+    Configuration for performance options.
+
+    Attributes:
+        USE_PARALLEL (bool): Enable parallel processing (default: False)
+
+    """
+    USE_PARALLEL: bool = False
 
 class Config:
-    """ Combines magnitude and spectral configurations. """
+    """ Combines magnitude, spectral, and performance configurations with loading from INI file. """
     def __init__(self):
         self.magnitude = MagnitudeConfig()
         self.spectral = SpectralConfig()
