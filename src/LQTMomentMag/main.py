@@ -37,12 +37,12 @@ except ImportError as e:
 warnings.filterwarnings("ignore")
 
 logging.basicConfig(
-    filename = 'mw_calculator_runtime.log',
+    filename = 'lqt_runtime.log',
     level = logging.INFO,
     format = "%(asctime)s - %(levelname)s - %(message)s",
     datefmt = "%Y-%m-%d %H:%M:%S"
 )
-logger = logging.getLogger("mw_calculator")
+logger = logging.getLogger("lqt_moment_mag")
 
 
 def main(args: Optional[List[str]] = None) -> None:
