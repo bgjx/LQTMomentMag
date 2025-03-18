@@ -21,10 +21,8 @@ Usage:
 
 import sys
 import argparse
-import logging
 from pathlib import Path
 import pandas as pd 
-import warnings
 from typing import Optional, List
 
 from .config import CONFIG
