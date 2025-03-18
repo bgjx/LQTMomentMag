@@ -16,6 +16,7 @@ Dependencies:
 
 Usage:
     LQTMwCalc --wave-dir data/waveforms --catalog-file data/catalog/lqt_catalog.xlsx
+    LQTMwCalc --wave-dir data/waveforms --catalog-file data/catalog/lqt_catalog.xlsx --config path/to/new_config.ini
 """
 
 import sys
@@ -25,6 +26,8 @@ from pathlib import Path
 import pandas as pd 
 import warnings
 from typing import Optional, List
+
+from .config import CONFIG
 
 try:
     from .processing import start_calculate
@@ -62,7 +65,9 @@ def main(args: Optional[List[str]] = None) -> None:
         ValueError: If calculation output is invalid.
     
     Example:
-        LQTMwCalc --wave-dir data/waveforms --catalog-file data/catalog/lqt_catalog.xlsx  
+        LQTMwCalc --wave-dir data/waveforms --catalog-file data/catalog/lqt_catalog.xlsx
+        LQTMwCalc --wave-dir data/waveforms --catalog-file data/catalog/lqt_catalog.xlsx --config path/to/new_config.ini
+
     """
 
     parser = argparse.ArgumentParser(description="Calculate moment magnitude in full LQT component.")
@@ -91,6 +96,11 @@ def main(args: Optional[List[str]] = None) -> None:
         type=Path,
         default="results",
         help="Output directory for results")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        help="Path to custom config.ini file to reload"
+    )
     args = parser.parse_args(args if args is not None else sys.argv[1:])
 
     # Log input parameters.
@@ -100,7 +110,22 @@ def main(args: Optional[List[str]] = None) -> None:
     logger.info(f"Catalog file: {args.catalog_file}")
     logger.info(f"Figure directory: {args.fig_dir}")
     logger.info(f"Output directory: {args.output_dir}")
+    if args.config:
+        logger.info(f"Custom configuration file: {args.config}")
 
+    # Reload configuration if specified
+    if args.config and args.config.exists():
+        try:
+            CONFIG.reload(args.config)
+            logger.info(f"Configuration reloaded successfully from {args.config}")
+        except (FileNotFoundError, ValueError) as e:
+            logger.error(f"Failed to reload configuration: {e}")
+    elif args.config and not args.config.exists():
+        logger.warning(f"Config file {args.config} not found, using default configuration")
+    else:
+        logger.info("Using default configuration from config.ini")
+
+    # Validate input paths
     for path in [args.wave_dir, args.cal_dir, args.catalog_file]:
         if not path.exists():
             logger.error(f"Path not found: {path}")
@@ -125,7 +150,6 @@ def main(args: Optional[List[str]] = None) -> None:
     if catalog_df.empty:
         logger.error("Catalog Dataframe is empty. Aborting execution.")
         raise ValueError("Catalog Dataframe is empty.")
-
 
     # Call the function to start calculating moment magnitude
     mw_result_df, mw_fitting_df, output_name = start_calculate(args.wave_dir, args.cal_dir, args.fig_dir, catalog_df)
