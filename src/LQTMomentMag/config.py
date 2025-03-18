@@ -7,7 +7,7 @@ from pathlib import Path
 class MagnitudeConfig:
     """ Class of magnitude calculation parameters with defaults. """
     SNR_THRESHOLD: float = 1.5
-    WATER_LEVEL: int = 10
+    WATER_LEVEL: int = 30
     PRE_FILTER: List[float] = None # Initialized in __post_init__
     POST_FILTER_F_MIN: float = 0.1
     POST_FILTER_F_MAX: float = 50
