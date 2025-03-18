@@ -27,8 +27,7 @@ import pandas as pd
 from obspy import Stream, UTCDateTime
 from obspy.geodetics import gps2dist_azimuth, locations2degrees
 from obspy.taup import TauPyModel
-from scipy import signal
-from scipy.fft import rfft, rfftfreq
+from scipy.signal import windows
 from tqdm import tqdm
 
 import LQTMomentMag.fitting_spectral as fit
@@ -41,15 +40,13 @@ from .utils import get_user_input, instrument_remove, read_waveforms, trace_snr
 logger = logging.getLogger("mw_calculator")
 
 
-def calculate_spectra(
+def calculate_seismic_spectra(
     trace_data: np.ndarray,
     sampling_rate: float,
-    smooth_window: int = None,
     apply_window: bool = True
     ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Calculates the amplitude spectrum of a given signal using the Fourier transform,
-    with optional smoothing and windowing.
+    Calculates the displacement amplitude spectrum of a seismogram using FFT.
 
     Args:
         trace_data (np.ndarray): Array of displacement signal ( in meters).
@@ -62,39 +59,43 @@ def calculate_spectra(
     Returns:
         Tuple[np.ndarray, np.ndarray]: 
             - frequencies: Array of sample frequencies in Hz.
-            - displacement_amplitudes: Array of displacement amplitudes in nm.
+            - amplitudes: Array of displacement amplitudes in m.
     Raises:
-        ValueError: If trace_data is empty.
+        ValueError: If trace_data is empty or invalid sampling rate
     """
 
     if not trace_data.data.size:
         raise ValueError("Trace data cannot be empty")
+    if sampling_rate <= 0:
+        raise ValueError("Sampling rate must be positive")
     
     n_samples = len(trace_data)
 
     # Apply Hann window to reduce spectral leakage
     if apply_window:
-        window = signal.windows.hann(n_samples)
-        trace_data_windowed = trace_data * window
+        window = windows.hann(n_samples)
+        trace_data_processed = trace_data * window
     else:
-        trace_data_windowed = trace_data
+        trace_data_processed = trace_data
     
-    # Compute the FFT
-    frequencies = rfftfreq(n_samples, 1 / sampling_rate)
-    fft_data = rfft(trace_data_windowed)
-    displacement_amplitudes = np.abs(fft_data) * 1e9
+    # Compute the FFT and single-sided spectrum
+    fft_data = np.fft.fft(trace_data_processed)
+    frequencies = np.fft.fftfreq(n_samples, 1 / sampling_rate)
+    amplitudes = np.abs(fft_data) * (2.0/n_samples)
 
-    # Normalize by the window to account for amplitude reduction
-    if apply_window:
-        window_sum = np.mean(signal.windows.hann(n_samples)) * n_samples
-        displacement_amplitudes /= window_sum
+    # Restrict only positive frequencies
+    positive_mask = frequencies >= 0
+    frequencies = frequencies[positive_mask]
+    amplitudes = amplitudes[positive_mask]
+
+    # Correct for Hann window amplitude reduction (average gain = 0.5)
+    if apply_window: 
+        amplitudes *= 2.0
     
-    # Apply smoothing if specified
-    if smooth_window is not None and smooth_window > 1:
-        window_smooth = signal.windows.boxcar(smooth_window)
-        displacement_amplitudes = np.convolve(displacement_amplitudes, window_smooth / window_smooth.sum(), mode='same')
-    
-    return frequencies, displacement_amplitudes
+    # Convert to nm (nanometers)
+    amplitudes*=1e9
+
+    return frequencies, amplitudes
 
 
 def window_trace(streams: Stream, P_arr: float, S_arr: float) -> Tuple[np.ndarray, ...]:
@@ -336,14 +337,14 @@ def calculate_moment_magnitude(
         fs = 1 / rotated_stream[0].stats.delta
         try:
             # Calculate source spectra
-            freq_P , spec_P  = calculate_spectra(p_window_data, fs)
-            freq_SV, spec_SV = calculate_spectra(sv_window_data, fs)
-            freq_SH, spec_SH = calculate_spectra(sh_window_data, fs)
+            freq_P , spec_P  = calculate_seismic_spectra(p_window_data, fs)
+            freq_SV, spec_SV = calculate_seismic_spectra(sv_window_data, fs)
+            freq_SH, spec_SH = calculate_seismic_spectra(sh_window_data, fs)
             
             # Calculate the noise spectra
-            freq_N_P,  spec_N_P  = calculate_spectra(p_noise_data, fs)
-            freq_N_SV, spec_N_SV = calculate_spectra(sv_noise_data, fs)
-            freq_N_SH, spec_N_SH = calculate_spectra(sh_noise_data, fs)
+            freq_N_P,  spec_N_P  = calculate_seismic_spectra(p_noise_data, fs)
+            freq_N_SV, spec_N_SV = calculate_seismic_spectra(sv_noise_data, fs)
+            freq_N_SH, spec_N_SH = calculate_seismic_spectra(sh_noise_data, fs)
         except (ValueError, RuntimeError) as e:
             logger.warning(f"Earthquake_{source_id}: An error occurred during spectra calculation for station {station}, {e}.", exc_info=True)
             continue
