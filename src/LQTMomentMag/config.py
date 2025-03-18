@@ -9,8 +9,8 @@ class MagnitudeConfig:
     SNR_THRESHOLD: float = 1.5
     WATER_LEVEL: int = 10
     PRE_FILTER: List[float] = None # Initialized in __post_init__
-    F_MIN: int = 7
-    F_MAX: int = 60
+    POST_FILTER_F_MIN: float = 0.1
+    POST_FILTER_F_MAX: float = 50
     PADDING_BEFORE_ARRIVAL: float = 0.1
     NOISE_DURATION: float = 0.5
     NOISE_PADDING: float = 0.2
@@ -27,7 +27,7 @@ class MagnitudeConfig:
 
     def __post_init__(self):
         if self.PRE_FILTER is None:
-            self.PRE_FILTER = [2, 5, 55, 60]
+            self.PRE_FILTER = [0.01, 0.02, 55, 60]
         if self.LAYER_BOUNDARIES is None:
             self.LAYER_BOUNDARIES = [
                 [-3.00, -1.90], [-1.90, -0.59], [-0.59, 0.22], [0.22, 2.50],
@@ -43,6 +43,8 @@ class MagnitudeConfig:
 @dataclass
 class SpectralConfig:
     """ Class of spectral fitting parameters with defaults. """
+    F_MIN: float = 1.0
+    F_MAX: float = 45.0
     OMEGA_0_RANGE_MIN: float = 0.1
     OMEGA_0_RANGE_MAX: float = 2000.0
     Q_RANGE_MIN: float = 50.0
@@ -73,8 +75,8 @@ class Config:
             self.magnitude.SNR_THRESHOLD = mag_section.getfloat("snr_threshold", fallback=self.magnitude.SNR_THRESHOLD)
             self.magnitude.WATER_LEVEL = mag_section.getint("water_level", fallback=self.magnitude.WATER_LEVEL)
             self.magnitude.PRE_FILTER = [float(x) for x in mag_section.get("pre_filter", fallback="2,5,55,60").split(",")]
-            self.magnitude.F_MIN = mag_section.getfloat("f_min", fallback=self.magnitude.F_MIN)
-            self.magnitude.F_MAX = mag_section.getfloat("f_max", fallback=self.magnitude.F_MAX)
+            self.magnitude.POST_FILTER_F_MIN = mag_section.getfloat("post_filter_f_min", fallback=self.magnitude.POST_FILTER_F_MIN)
+            self.magnitude.POST_FILTER_F_MAX = mag_section.getfloat("post_filter_f_max", fallback=self.magnitude.POST_FILTER_F_MAX)
             self.magnitude.PADDING_BEFORE_ARRIVAL = mag_section.getfloat("padding_before_arrival", fallback=self.magnitude.PADDING_BEFORE_ARRIVAL)
             self.magnitude.NOISE_DURATION = mag_section.getfloat("noise_duration", fallback=self.magnitude.NOISE_DURATION)
             self.magnitude.NOISE_PADDING = mag_section.getfloat("noise_padding", fallback=self.magnitude.NOISE_PADDING)
@@ -92,6 +94,8 @@ class Config:
         # load spectal config section
         if "Spectral" in config:
             spec_section = config["Spectral"]
+            self.spectral.F_MIN = spec_section.getfloat("f_min", fallback=self.spectral.F_MIN)
+            self.spectral.F_MAX = spec_section.getfloat("f_max", fallback=self.spectral.F_MAX)
             self.spectral.OMEGA_0_RANGE_MIN = spec_section.getfloat("omega_0_range_min", fallback=self.spectral.OMEGA_0_RANGE_MIN)
             self.spectral.OMEGA_0_RANGE_MAX = spec_section.getfloat("omega_0_range_max", fallback=self.spectral.OMEGA_0_RANGE_MAX)
             self.spectral.Q_RANGE_MIN =  spec_section.getfloat("q_range_min", fallback=self.spectral.Q_RANGE_MIN)
