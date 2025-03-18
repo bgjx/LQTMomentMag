@@ -32,7 +32,7 @@ def magnitude_estimator(
     catalog_df: pd.DataFrame,
     output_dir: str = "results",
     config_file: Optional[str] = None
-    ) -> Tuple[pd.DataFrame, pd.DataFrame]
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     """
     Calculate seismic moment magnitude in the LQT component system.
