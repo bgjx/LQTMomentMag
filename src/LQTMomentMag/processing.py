@@ -9,12 +9,16 @@ Developed by arham zakki edelo.
 
 
 contact: 
-- edelo.arham@gmail.com
-- https://github.com/bgjx
+    - edelo.arham@gmail.com
+    - https://github.com/bgjx
 
 Pre-requisite modules:
-->[pathlib, tqdm, numpy, pandas, obspy, scipy] 
+    ->[pathlib, tqdm, numpy, pandas, obspy, scipy]
 
+Description:
+    This module implements seismic moment magnitude calculation using LQT component system.
+    It includes instrument removal, waveform rotation, spectral fitting and moment magnitude
+    estimation based on user configured parameters.
 """
 
 import logging
@@ -30,14 +34,11 @@ from obspy.taup import TauPyModel
 from scipy.signal import windows
 from tqdm import tqdm
 
-import LQTMomentMag.fitting_spectral as fit
-import LQTMomentMag.refraction as ref 
 from .config import CONFIG
+import LQTMomentMag.fitting_spectral as fit
+from LQTMomentMag.refraction import calculate_inc_angle
 from .plotting import plot_spectral_fitting
 from .utils import get_user_input, instrument_remove, read_waveforms, trace_snr
-
-
-logger = logging.getLogger("mw_calculator")
 
 
 def calculate_seismic_spectra(
@@ -64,14 +65,10 @@ def calculate_seismic_spectra(
         ValueError: If trace_data is empty or invalid sampling rate
     """
 
-    if not trace_data.data.size:
-        raise ValueError("Trace data cannot be empty")
-    if sampling_rate <= 0:
-        raise ValueError("Sampling rate must be positive")
+    if not trace_data.data.size or sampling_rate <= 0:
+        raise ValueError("Trace data cannot be empty and sampling rate must be positive")
     
     n_samples = len(trace_data)
-
-    # Apply Hann window to reduce spectral leakage
     if apply_window:
         window = windows.hann(n_samples)
         trace_data_processed = trace_data * window
@@ -82,23 +79,19 @@ def calculate_seismic_spectra(
     fft_data = np.fft.fft(trace_data_processed)
     frequencies = np.fft.fftfreq(n_samples, 1 / sampling_rate)
     amplitudes = np.abs(fft_data) * (2.0/n_samples)
-
-    # Restrict only positive frequencies
     positive_mask = frequencies >= 0
     frequencies = frequencies[positive_mask]
     amplitudes = amplitudes[positive_mask]
 
-    # Correct for Hann window amplitude reduction (average gain = 0.5)
     if apply_window: 
-        amplitudes *= 2.0
+        amplitudes *= 2.0      # Correct for Hann window gain
     
-    # Convert to nm (nanometers)
-    amplitudes*=1e9
+    amplitudes *= 1e9           # Convert to nm (nanometers)
 
     return frequencies, amplitudes
 
 
-def window_trace(streams: Stream, P_arr: float, S_arr: float) -> Tuple[np.ndarray, ...]:
+def window_trace(streams: Stream, p_arr_time: float, s_arr_time: float) -> Tuple[np.ndarray, ...]:
     """
     Windows seismic trace data around P, SV, and SH phase and extracts noise data.
 
@@ -122,17 +115,17 @@ def window_trace(streams: Stream, P_arr: float, S_arr: float) -> Tuple[np.ndarra
     [trace_L, trace_Q, trace_T] = [streams.select(component = comp)[0] for comp in ['L', 'Q', 'T']]
     
     # Dynamic window parameters
-    s_p_time = S_arr - P_arr    
+    s_p_time = s_arr_time - p_arr_time    
     time_after_pick_p = 0.75 * s_p_time
     time_after_pick_s = 1.75 * s_p_time
     
     # Find the data index for phase windowing
-    p_phase_start_index = int(round((P_arr - trace_L.stats.starttime - CONFIG.magnitude.PADDING_BEFORE_ARRIVAL)/trace_L.stats.delta), 4)
-    p_phase_end_index = int(round((P_arr - trace_L.stats.starttime + time_after_pick_p )/trace_L.stats.delta, 4))
-    s_phase_start_index = int(round((S_arr - trace_Q.stats.starttime - CONFIG.magnitude.PADDING_BEFORE_ARRIVAL)/trace_Q.stats.delta), 4)
-    s_phase_end_index = int(round((S_arr - trace_Q.stats.starttime + time_after_pick_s )/ trace_Q.stats.delta, 4))
-    noise_start_index = int(round((P_arr - trace_L.stats.starttime - CONFIG.magnitude.NOISE_DURATION)/trace_L.stats.delta, 4))                             
-    noise_end_index  = int(round((P_arr - trace_L.stats.starttime - CONFIG.magnitude.NOISE_PADDING )/trace_L.stats.delta, 4))
+    p_phase_start_index = int(round((p_arr_time - trace_L.stats.starttime - CONFIG.magnitude.PADDING_BEFORE_ARRIVAL)/trace_L.stats.delta), 4)
+    p_phase_end_index = int(round((p_arr_time - trace_L.stats.starttime + time_after_pick_p )/trace_L.stats.delta, 4))
+    s_phase_start_index = int(round((p_arr_time - trace_Q.stats.starttime - CONFIG.magnitude.PADDING_BEFORE_ARRIVAL)/trace_Q.stats.delta), 4)
+    s_phase_end_index = int(round((p_arr_time - trace_Q.stats.starttime + time_after_pick_s )/ trace_Q.stats.delta, 4))
+    noise_start_index = int(round((p_arr_time - trace_L.stats.starttime - CONFIG.magnitude.NOISE_DURATION)/trace_L.stats.delta, 4))                             
+    noise_end_index  = int(round((p_arr_time - trace_L.stats.starttime - CONFIG.magnitude.NOISE_PADDING )/trace_L.stats.delta, 4))
 
     # Window the data by the index
     P_data     = trace_L.data[p_phase_start_index : p_phase_end_index + 1]

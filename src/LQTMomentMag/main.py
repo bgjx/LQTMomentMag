@@ -21,6 +21,8 @@ Usage:
 
 import sys
 import argparse
+import logging
+import warnings
 from pathlib import Path
 import pandas as pd 
 from typing import Optional, List
@@ -32,15 +34,15 @@ try:
 except ImportError as e:
     raise ImportError("Failed to import processing module. Ensure LQTMomentMag is installed correctly.") from e
 
-# warnings.filterwarnings("ignore")
-
-# logging.basicConfig(
-#     filename = 'lqt_runtime.log',
-#     level = logging.INFO,
-#     format = "%(asctime)s - %(levelname)s - %(message)s",
-#     datefmt = "%Y-%m-%d %H:%M:%S"
-# )
-# logger = logging.getLogger("lqt_moment_mag")
+# Set up logging handler
+warnings.filterwarnings("ignore")
+logging.basicConfig(
+    filename = 'lqt_runtime.log',
+    level = logging.INFO,
+    format = "%(asctime)s - %(levelname)s - %(message)s",
+    datefmt = "%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger("LQTMomentMag")
 
 
 def main(args: Optional[List[str]] = None) -> None:
