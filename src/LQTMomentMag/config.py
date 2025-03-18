@@ -106,21 +106,35 @@ class Config:
     def __init__(self):
         self.magnitude = MagnitudeConfig()
         self.spectral = SpectralConfig()
+        self.performance = PerformanceConfig()
 
     def load_from_file(self, config_file: str = None) -> None:
-        """Load configuration from an INI file, with fallback to defaults."""
+        """
+        Load configuration from an INI file, with fallback to defaults.
+        
+        Args:
+            config_file (str, optional): Path to configuration file.
+            Defaults to 'config.ini' in parent directory.
+        
+        Raises:
+            FileNotFoundError: If the configuration file is not found or unreadable.
+            ValueError: If configuration parameters are invalid.       
+        """
         config  = ConfigParser()
         if config_file is None:
             config_file = Path(__file__).parent.parent/ "config.ini"
         if not config.read(config_file):
-            return 
+            raise FileNotFoundError(f"Configuration file {config_file} not found or unreadable")
         
         # Load magnitude config section
         if "Magnitude" in config:
             mag_section = config["Magnitude"]
             self.magnitude.SNR_THRESHOLD = mag_section.getfloat("snr_threshold", fallback=self.magnitude.SNR_THRESHOLD)
             self.magnitude.WATER_LEVEL = mag_section.getint("water_level", fallback=self.magnitude.WATER_LEVEL)
-            self.magnitude.PRE_FILTER = [float(x) for x in mag_section.get("pre_filter", fallback="2,5,55,60").split(",")]
+            try:
+                self.magnitude.PRE_FILTER = [float(x) for x in mag_section.get("pre_filter", fallback="2,5,55,60").split(",")]
+            except ValueError as e:
+                raise ValueError(f"Invalid format for pre_filter in config.ini: {e}")
             self.magnitude.POST_FILTER_F_MIN = mag_section.getfloat("post_filter_f_min", fallback=self.magnitude.POST_FILTER_F_MIN)
             self.magnitude.POST_FILTER_F_MAX = mag_section.getfloat("post_filter_f_max", fallback=self.magnitude.POST_FILTER_F_MAX)
             self.magnitude.PADDING_BEFORE_ARRIVAL = mag_section.getfloat("padding_before_arrival", fallback=self.magnitude.PADDING_BEFORE_ARRIVAL)
@@ -132,10 +146,16 @@ class Config:
             self.magnitude.K_P = mag_section.getfloat("k_p", fallback=self.magnitude.K_P)
             self.magnitude.K_S = mag_section.getfloat("k_s", fallback=self.magnitude.K_S)
             boundaries_str = mag_section.get("layer_boundaries", fallback= "-3.00,-1.90; -1.90,-0.59; -0.59, 0.22; 0.22, 2.50; 2.50, 7.00; 7.00,9.00;  9.00,15.00 ; 15.00,33.00; 33.00,9999")
-            self.magnitude.LAYER_BOUNDARIES = [[float(x) for x in layer.split(",")] for layer in boundaries_str.split(";")]
-            self.magnitude.VELOCITY_VP = [float(x) for x in mag_section.get("velocity_vp", fallback="2.68, 2.99, 3.95, 4.50, 4.99, 5.60, 5.80, 6.40, 8.00").split(",")]
-            self.magnitude.VELOCITY_VS = [float(x) for x in mag_section.get("velocity_vs", fallback="1.60, 1.79, 2.37, 2.69, 2.99, 3.35, 3.47, 3.83, 4.79").split(",")]
-            self.magnitude.DENSITY = [float(x) for x in mag_section.get("density", fallback="2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700").split(",")]
+            try:
+                self.magnitude.LAYER_BOUNDARIES = [[float(x) for x in layer.split(",")] for layer in boundaries_str.split(";")]
+            except ValueError as e:
+                raise ValueError(f"Invalid format for layer_boundaries i config.ini: {e}")
+            try:
+                self.magnitude.VELOCITY_VP = [float(x) for x in mag_section.get("velocity_vp", fallback="2.68, 2.99, 3.95, 4.50, 4.99, 5.60, 5.80, 6.40, 8.00").split(",")]
+                self.magnitude.VELOCITY_VS = [float(x) for x in mag_section.get("velocity_vs", fallback="1.60, 1.79, 2.37, 2.69, 2.99, 3.35, 3.47, 3.83, 4.79").split(",")]
+                self.magnitude.DENSITY = [float(x) for x in mag_section.get("density", fallback="2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700, 2700").split(",")]
+            except ValueError as e:
+                raise ValueError(f"Invalid format for velocity or density in config.ini: {e}")
 
         # Load spectral config section
         if "Spectral" in config:
@@ -150,6 +170,22 @@ class Config:
             self.spectral.DEFAULT_N_SAMPLES = spec_section.getint("default_n_samples", fallback=self.spectral.DEFAULT_N_SAMPLES)
             self.spectral.N_FACTOR = spec_section.getint("n_factor", fallback=self.spectral.N_FACTOR)
             self.spectral.Y_FACTOR = spec_section.getint("y_factor", fallback=self.spectral.Y_FACTOR)
+        
+        # Load performance config section
+        if "Performance" in config:
+            perf_section = config["Performance"]
+            self.performance.USE_PARALLEL = perf_section.getboolean("use_parallel", fallback=self.performance.USE_PARALLEL)
+    
+    def reload(self, config_file: str = None) -> None:
+        """
+        Reload configuration from INI file, resetting to defaults first.
+
+        Args:
+            config_file (str, optional): Path to the configuration file.
+        """
+
+        self.__init__()
+        self.load_from_file(config_file)
 
 # Singleton instance for easy access
 CONFIG = Config()
