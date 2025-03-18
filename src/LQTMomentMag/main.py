@@ -34,15 +34,15 @@ try:
 except ImportError as e:
     raise ImportError("Failed to import processing module. Ensure LQTMomentMag is installed correctly.") from e
 
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 
-logging.basicConfig(
-    filename = 'lqt_runtime.log',
-    level = logging.INFO,
-    format = "%(asctime)s - %(levelname)s - %(message)s",
-    datefmt = "%Y-%m-%d %H:%M:%S"
-)
-logger = logging.getLogger("lqt_moment_mag")
+# logging.basicConfig(
+#     filename = 'lqt_runtime.log',
+#     level = logging.INFO,
+#     format = "%(asctime)s - %(levelname)s - %(message)s",
+#     datefmt = "%Y-%m-%d %H:%M:%S"
+# )
+# logger = logging.getLogger("lqt_moment_mag")
 
 
 def main(args: Optional[List[str]] = None) -> None:
@@ -103,32 +103,20 @@ def main(args: Optional[List[str]] = None) -> None:
     )
     args = parser.parse_args(args if args is not None else sys.argv[1:])
 
-    # Log input parameters.
-    logger.info("Starting moment magnitude calculation with the following parameters:")
-    logger.info(f"Waveform directory: {args.wave_dir}")
-    logger.info(f"Calibration directory: {args.cal_dir}")
-    logger.info(f"Catalog file: {args.catalog_file}")
-    logger.info(f"Figure directory: {args.fig_dir}")
-    logger.info(f"Output directory: {args.output_dir}")
-    if args.config:
-        logger.info(f"Custom configuration file: {args.config}")
-
     # Reload configuration if specified
     if args.config and args.config.exists():
         try:
             CONFIG.reload(args.config)
-            logger.info(f"Configuration reloaded successfully from {args.config}")
         except (FileNotFoundError, ValueError) as e:
-            logger.error(f"Failed to reload configuration: {e}")
+            raise RuntimeError (f"Failed to reload configuration: {e}")
     elif args.config and not args.config.exists():
-        logger.warning(f"Config file {args.config} not found, using default configuration")
+        raise FileNotFoundError(f"Config file {args.config} not found, using default configuration")
     else:
-        logger.info("Using default configuration from config.ini")
+        pass
 
     # Validate input paths
     for path in [args.wave_dir, args.cal_dir, args.catalog_file]:
         if not path.exists():
-            logger.error(f"Path not found: {path}")
             raise FileNotFoundError(f"Path not found: {path}")
     
     # Create output directories
@@ -136,19 +124,16 @@ def main(args: Optional[List[str]] = None) -> None:
         args.fig_dir.mkdir(parents=True, exist_ok=True)
         args.output_dir.mkdir(parents=True, exist_ok=True)
     except PermissionError as e:
-        logger.error(f"Permission denied creating directories: {e}")
         raise PermissionError(f"Permission denied creating directories: {e}")
             
     # Load catalog with error handling
     try:
         catalog_df = pd.read_excel(args.catalog_file, index_col=None)
     except Exception as e:
-        logger.error(f"Failed to load catalog file {args.catalog_file}: {e}")
         raise ValueError(f"Failed to load catalog file: {e}")
 
     # Validate catalog
     if catalog_df.empty:
-        logger.error("Catalog Dataframe is empty. Aborting execution.")
         raise ValueError("Catalog Dataframe is empty.")
 
     # Call the function to start calculating moment magnitude
@@ -156,7 +141,6 @@ def main(args: Optional[List[str]] = None) -> None:
     
     # Validate calculation output
     if mw_result_df is None or mw_fitting_df is None:
-        logger.error("Calculation return invalid results (None).")
         raise ValueError("Calculation return invalid results (None).")
 
     # save and set dataframe index
@@ -164,12 +148,8 @@ def main(args: Optional[List[str]] = None) -> None:
         mw_result_df.to_excel(args.output_dir / f"{output_name}_result.xlsx", index = False)
         mw_fitting_df.to_excel(args.output_dir/ f"{output_name}_fitting_result.xlsx", index = False)
     except Exception as e:
-        logger.error(f"Failed to save results: {e}")
         raise RuntimeError(f"Failed to save results: {e}")
 
-    logger.info(f"Results saved to {args.output_dir}")
-    logger.info("Moment magnitude calculation completed successfully.")
-    
     return None
 
 if __name__ == "__main__" :
