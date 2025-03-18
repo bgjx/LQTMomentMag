@@ -40,7 +40,7 @@ from LQTMomentMag.refraction import calculate_inc_angle
 from .plotting import plot_spectral_fitting
 from .utils import get_user_input, instrument_remove, read_waveforms, trace_snr
 
-
+logger = logging.getLogger("LQTMomentMag")
 def calculate_seismic_spectra(
     trace_data: np.ndarray,
     sampling_rate: float,

@@ -18,11 +18,24 @@ Example:
     ... )
 """
 
+import warnings
+import logging
 import pandas as pd
 from pathlib import Path
 from typing import Optional, Tuple, List
 from .config import CONFIG
 from .processing import start_calculate
+
+
+# Set up logging handler
+warnings.filterwarnings("ignore")
+logging.basicConfig(
+    filename = 'lqt_runtime.log',
+    level = logging.INFO,
+    format = "%(asctime)s - %(levelname)s - %(message)s",
+    datefmt = "%Y-%m-%d %H:%M:%S"
+)
+logger = logging.getLogger("LQTMomentMag")
 
 
 def magnitude_estimator(
