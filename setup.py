@@ -17,13 +17,13 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=[
-        "numpy>=1.23.0",
+        "numpy>=1.21.0",
         "pandas>=1.5.0",
-        "matplotlib>=3.6.0",
-        "scipy>=1.9.0",
-        "obspy>=1.4.0",
-        "tqdm>=4.64.0",
-        "configparser>=5.2.0",
+        "matplotlib>=3.5.0",
+        "scipy>=1.5.0",
+        "obspy>=1.3.0",
+        "tqdm>=4.60.0",
+        "configparser>=5.0.0",
     ],
     tests_requires = ["pytest>=7.0.0"],
     entry_points={
@@ -38,5 +38,7 @@ setup(
         "Operating System :: OS Independent",
         "Topic:: Scientific/Engineering :: Physics",
         "Intended Audience :: Science/Research",
+        "Development Status :: 4 - Beta"
     ],
+    include_package_data=True,
 )
