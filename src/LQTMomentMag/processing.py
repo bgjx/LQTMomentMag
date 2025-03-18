@@ -54,15 +54,13 @@ def calculate_seismic_spectra(
     Args:
         trace_data (np.ndarray): Array of displacement signal ( in meters).
         sampling_rate (float): Sampling rate of the signal in Hz.
-        smooth_window (int, optional): Window size for moving average smoothing.
-            if None, no smoothing is applied.
         apply_window (bool, optional): Apply a Hann window to reduce spectral leakage.
             Defaults to True.
 
     Returns:
         Tuple[np.ndarray, np.ndarray]: 
             - frequencies: Array of sample frequencies in Hz.
-            - amplitudes: Array of displacement amplitudes in m.
+            - amplitudes: Array of displacement amplitudes in nm (nanometers).
     Raises:
         ValueError: If trace_data is empty or invalid sampling rate
     """
@@ -86,7 +84,7 @@ def calculate_seismic_spectra(
     amplitudes = amplitudes[positive_mask]
 
     if apply_window: 
-        amplitudes *= 2.0      # Correct for Hann window gain
+        amplitudes *= 2.0      # Correct for Hann window gain (since average reduction gain is 0.5)
     
     amplitudes *= 1e9           # Convert to nm (nanometers)
 
@@ -111,11 +109,11 @@ def window_trace(
 
     Returns:
         Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]: 
-            - P_data: The data windowed around the P phase in the L component.
-            - SV_data: The data windowed around the S phase in the Q component.
+            - P_data: The data windowed around the P phase in the L/Z component.
+            - SV_data: The data windowed around the S phase in the Q/R component.
             - SH_data: The data windowed around the S phase in the T component.
-            - P_noise: The data windowed around the noise period before the P phase in the L component.
-            - SV_noise: The data windowed around the noise period before the P phase in the Q component.
+            - P_noise: The data windowed around the noise period before the P phase in the L/Z component.
+            - SV_noise: The data windowed around the noise period before the P phase in the Q/R component.
             - SH_noise: The data windowed around the noise period before the P phase in the T component.
     Raises:
         ValueError: If component traces are missing.
@@ -378,7 +376,7 @@ def calculate_moment_magnitude(
         Omega_0_SH, Q_factor_SH, f_c_SH, err_SH, x_fit_SH, y_fit_SH = fit_SH
 
         # Updating the fitting object collector 
-        fitting_result["id"].append(source_id)
+        fitting_result["source_id"].append(source_id)
         fitting_result["station"].append(station)
         fitting_result["f_corner_p"].append(f_c_P)
         fitting_result["f_corner_sv"].append(f_c_SV)
@@ -393,7 +391,6 @@ def calculate_moment_magnitude(
         fitting_result["rms_e_sv_nms"].append((err_SV))
         fitting_result["rms_e_sh_nms"].append((err_SH))
 
-
         # Calculate the moment magnitude
         try:
             # Calculate the  resultant omega
@@ -403,8 +400,8 @@ def calculate_moment_magnitude(
             # Calculate seismic moment
             M_0_P = (4.0 * np.pi * density_value * (velocity_P ** 3) * source_distance_m * omega_P) / (CONFIG.magnitude.R_PATTERN_P * CONFIG.magnitude.FREE_SURFACE_FACTOR)
             M_0_S = (4.0 * np.pi * density_value * (velocity_S ** 3) * source_distance_m * omega_S) / (CONFIG.magnitude.R_PATTERN_S * CONFIG.magnitude.FREE_SURFACE_FACTOR)
-            fitting_result["Moment_p_Nm"].append(M_0_P)
-            fitting_result["Moment_s_Nm"].append(M_0_S)
+            fitting_result["moment_p_Nm"].append(M_0_P)
+            fitting_result["moment_s_Nm"].append(M_0_S)
             
             # Calculate average seismic moment at station
             moments.append((M_0_P + M_0_S)/2)
@@ -422,8 +419,7 @@ def calculate_moment_magnitude(
             logger.warning(f" Earthquake_{source_id}: Failed to calculate seismic moment for earthquake {source_id}, {e}.", exc_info=True)
             continue
         
-        
-        # Update fitting spectral object collectro for plotting
+        # Update fitting spectral object collector for plotting
         if figure_statement:
             all_streams.append(rotated_stream)
             all_p_times.append(p_arr_time)
@@ -453,14 +449,14 @@ def calculate_moment_magnitude(
     mw = ((2.0 / 3.0) * np.log10(moment_average)) - 6.07
     mw_std = (2.0 /3.0) * moment_std/(moment_average * np.log(10))
  
-    results = {"ID":[f"{source_id}"], 
-                "Fc_avg":[f"{np.mean(corner_frequencies):.3f}"],
-                "Fc_std":[f"{np.std(corner_frequencies):.3f}"],
-                "Src_rad_avg_(m)":[f"{np.mean(source_radius):.3f}"],
-                "Src_rad_std_(m)":[f"{np.std(source_radius):.3f}"],
-                "Stress_drop_(bar)":[f"{(7 * moment_average) / (16 * np.mean(source_radius)** 3) *1e-5:.3f}"],
-                "Mw_average":[f"{mw:.3f}"],
-                "Mw_std":[f"{mw_std:.3f}"]
+    results = {"source_id":[f"{source_id}"], 
+                "fc_avg":[f"{np.mean(corner_frequencies):.3f}"],
+                "fc_std":[f"{np.std(corner_frequencies):.3f}"],
+                "src_rad_avg_m":[f"{np.mean(source_radius):.3f}"],
+                "src_rad_std_m":[f"{np.std(source_radius):.3f}"],
+                "stress_drop_bar":[f"{(7 * moment_average) / (16 * np.mean(source_radius)** 3) *1e-5:.3f}"],
+                "mw_average":[f"{mw:.3f}"],
+                "mw_std":[f"{mw_std:.3f}"]
                 }
     
     # Create fitting spectral plot
