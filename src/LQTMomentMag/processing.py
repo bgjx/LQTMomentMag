@@ -24,7 +24,7 @@ Description:
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd 
@@ -40,7 +40,9 @@ from LQTMomentMag.refraction import calculate_inc_angle
 from .plotting import plot_spectral_fitting
 from .utils import get_user_input, instrument_remove, read_waveforms, trace_snr
 
+
 logger = logging.getLogger("LQTMomentMag")
+
 def calculate_seismic_spectra(
     trace_data: np.ndarray,
     sampling_rate: float,
@@ -91,15 +93,21 @@ def calculate_seismic_spectra(
     return frequencies, amplitudes
 
 
-def window_trace(streams: Stream, p_arr_time: float, s_arr_time: float) -> Tuple[np.ndarray, ...]:
+def window_trace(
+    streams: Stream,
+    p_arr_time: float,
+    s_arr_time: float,
+    lqt_mode: Optional[bool] = True
+    ) -> Tuple[np.ndarray, ...]:
     """
     Windows seismic trace data around P, SV, and SH phase and extracts noise data.
 
     Args:
     
         streams (Stream): A stream object containing the seismic data.
-        P_arr (float): The arrival time of the P phase (in seconds from the trace start).
-        S_arr (float): The arrival time of the S phase (in seconds from the trace start).
+        p_arr_time (float): Arrival time of the P phase (in seconds from the trace start).
+        s_arr_time (float): Arrival time of the S phase (in seconds from the trace start).
+        lqt_mode (Optional[bool]): Use LQT components if True, ZRT if false. Default to True. 
 
     Returns:
         Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]: 
@@ -109,10 +117,18 @@ def window_trace(streams: Stream, p_arr_time: float, s_arr_time: float) -> Tuple
             - P_noise: The data windowed around the noise period before the P phase in the L component.
             - SV_noise: The data windowed around the noise period before the P phase in the Q component.
             - SH_noise: The data windowed around the noise period before the P phase in the T component.
+    Raises:
+        ValueError: If component traces are missing.
+    
+    Notes:
+        Window size are dynamically calculated based on S-P time with configurable padding.
     """
     
-    # Extract the vertical, radial, and transverse components
-    [trace_L, trace_Q, trace_T] = [streams.select(component = comp)[0] for comp in ['L', 'Q', 'T']]
+    components = ['L', 'Q', 'T'] if lqt_mode else ['Z', 'R', 'T']
+    try:
+        [trace_P, trace_SV, trace_SH] = [streams.select(component = comp)[0] for comp in components]
+    except IndexError as e:
+        raise ValueError(f"Missing {components} components in stream")
     
     # Dynamic window parameters
     s_p_time = s_arr_time - p_arr_time    
@@ -120,21 +136,21 @@ def window_trace(streams: Stream, p_arr_time: float, s_arr_time: float) -> Tuple
     time_after_pick_s = 1.75 * s_p_time
     
     # Find the data index for phase windowing
-    p_phase_start_index = int(round((p_arr_time - trace_L.stats.starttime - CONFIG.magnitude.PADDING_BEFORE_ARRIVAL)/trace_L.stats.delta), 4)
-    p_phase_end_index = int(round((p_arr_time - trace_L.stats.starttime + time_after_pick_p )/trace_L.stats.delta, 4))
-    s_phase_start_index = int(round((p_arr_time - trace_Q.stats.starttime - CONFIG.magnitude.PADDING_BEFORE_ARRIVAL)/trace_Q.stats.delta), 4)
-    s_phase_end_index = int(round((p_arr_time - trace_Q.stats.starttime + time_after_pick_s )/ trace_Q.stats.delta, 4))
-    noise_start_index = int(round((p_arr_time - trace_L.stats.starttime - CONFIG.magnitude.NOISE_DURATION)/trace_L.stats.delta, 4))                             
-    noise_end_index  = int(round((p_arr_time - trace_L.stats.starttime - CONFIG.magnitude.NOISE_PADDING )/trace_L.stats.delta, 4))
+    p_phase_start_index = int(round((p_arr_time - trace_P.stats.starttime - CONFIG.magnitude.PADDING_BEFORE_ARRIVAL)/trace_P.stats.delta), 4)
+    p_phase_end_index = int(round((p_arr_time - trace_P.stats.starttime + time_after_pick_p )/trace_P.stats.delta, 4))
+    s_phase_start_index = int(round((p_arr_time - trace_SV.stats.starttime - CONFIG.magnitude.PADDING_BEFORE_ARRIVAL)/trace_SV.stats.delta), 4)
+    s_phase_end_index = int(round((p_arr_time - trace_SV.stats.starttime + time_after_pick_s )/ trace_SV.stats.delta, 4))
+    noise_start_index = int(round((p_arr_time - trace_P.stats.starttime - CONFIG.magnitude.NOISE_DURATION)/trace_P.stats.delta, 4))                             
+    noise_end_index  = int(round((p_arr_time - trace_P.stats.starttime - CONFIG.magnitude.NOISE_PADDING )/trace_P.stats.delta, 4))
 
     # Window the data by the index
-    P_data     = trace_L.data[p_phase_start_index : p_phase_end_index + 1]
-    SV_data     = trace_Q.data[s_phase_start_index : s_phase_end_index + 1]
-    SH_data     = trace_T.data[s_phase_start_index : s_phase_end_index + 1]
+    P_data     = trace_P.data[p_phase_start_index : p_phase_end_index + 1]
+    SV_data     = trace_SV.data[s_phase_start_index : s_phase_end_index + 1]
+    SH_data     = trace_SH.data[s_phase_start_index : s_phase_end_index + 1]
 
-    P_noise  = trace_L.data[noise_start_index : noise_end_index + 1]
-    SV_noise = trace_Q.data[noise_start_index : noise_end_index + 1]
-    SH_noise = trace_T.data[noise_start_index : noise_end_index + 1]
+    P_noise  = trace_P.data[noise_start_index : noise_end_index + 1]
+    SV_noise = trace_SV.data[noise_start_index : noise_end_index + 1]
+    SH_noise = trace_SH.data[noise_start_index : noise_end_index + 1]
 
     return P_data, SV_data, SH_data, P_noise, SV_noise, SH_noise
 
@@ -154,19 +170,7 @@ def calculate_moment_magnitude(
     This function processes moment magnitude calculation for an earthquake from given
     hypocenter dataframe and picking dataframe. This function handle the waveform instrument 
     response removal, seismogram rotation, spectral fitting, moment magnitude calculation, and
-    figure creation. It return two dictionary objects, magnitude and fitting result. 
-    
-    The whole process in this function following these steps:
-    1. Remove instrument response using calibration file.
-    2. Rotate waveforms from ZNE to LQT (or ZRT for non-LQT mode) based on earthquake type.
-    3. Window P and S waves, compute their spectra, and fit spectral parameters (
-        corner_frequency, omega_0, q_factor) using optimized algorithm (default: QMC).
-    4. Calculate seismic moment (M_0) using the formula:
-        M_0 = (4 * pi * rho * v^3 * r * Omega_0) / (R * F),
-        where rho is density, v is wave velocity, r is distance, R is radiation pattern, and F is free surface factor.
-    5. Compute moment magnitude (Mw) using.
-        Mw = (2/3) * (log10(M_0) - 6.07), where M_0 is in Nm.
-       
+    figure creation. It return two dictionary objects, magnitude and fitting result.      
 
     Args:
         wave_path (Path): Path to the directory containing waveform files.
@@ -187,13 +191,29 @@ def calculate_moment_magnitude(
     Raises:
         ValueError: if source_df or pick_df are empty or wrong format.
         IOError: If waveform or calibration files cannot be read.
+    
+    Notes:
+        The whole process in this function following these steps:
+            1. Remove instrument response using calibration file.
+            2. Rotate waveforms from ZNE to LQT (or ZRT for non-LQT mode) based on earthquake type.
+                (Incidence in LQT rotation is still based on 1-D velocity model for now.)
+            3. Window P and S waves, compute their spectra, and fit spectral parameters (
+                corner_frequency, omega_0, q_factor) using optimized algorithm (default: QMC).
+            4. Calculate seismic moment (M_0) using the formula:
+                M_0 = (4 * pi * rho * v^3 * r * Omega_0) / (R * F),
+                where rho is density, v is wave velocity, r is distance, 
+                R is radiation pattern, and F is free surface factor.
+            5. Compute moment magnitude (Mw) using.
+                Mw = (2/3) * (log10(M_0) - 6.07), where M_0 is in Nm.
     """ 
 
     # Validate all config parameter before doing calculation
     required_config = [
-        "LAYER_BOUNDARIES", "VELOCITY_VP", "VELOCITY_VS", "DENSITY", "SNR_THRESHOLD"
+        "LAYER_BOUNDARIES", "VELOCITY_VP", "VELOCITY_VS", "DENSITY", "SNR_THRESHOLD",
+        "R_PATTERN_P", "R_PATTERN_S", "FREE_SURFACE_FACTOR", "K_P", "K_S",
+        "PADDING_BEFORE_ARRIVAL", "NOISE_DURATION", "NOISE_PADDING", "F_MIN", "F_MAX"
     ]
-    missing_config = [attr for attr in required_config if not hasattr(CONFIG.magnitude, attr)]
+    missing_config = [attr for attr in required_config if not hasattr(CONFIG.magnitude, attr) or not hasattr(CONFIG.spectral, attr)]
     if missing_config:
         logger.error(f"Earthquake_{source_id}: Missing config attributes: {missing_config}")
         raise ValueError(f"Missing config attributes: {missing_config}")
@@ -300,10 +320,10 @@ def calculate_moment_magnitude(
                 p, _, _ = stream_lqt_p.traces # L, Q, T components
                 _, sv, sh = stream_lqt_s.traces
             else:
-                _, _, incidence_angle_p = ref.calculate_inc_angle(source_coordinate, station_coordinate,
+                _, _, incidence_angle_p = calculate_inc_angle(source_coordinate, station_coordinate,
                                                                 CONFIG.magnitude.LAYER_BOUNDARIES,
                                                                 CONFIG.magnitude.VELOCITY_VP)
-                _, _, incidence_angle_s = ref.calculate_inc_angle(source_coordinate, station_coordinate,
+                _, _, incidence_angle_s = calculate_inc_angle(source_coordinate, station_coordinate,
                                                                 CONFIG.magnitude.LAYER_BOUNDARIES,
                                                                 CONFIG.magnitude.VELOCITY_VS)
                 stream_lqt_p = stream_displacement.copy()
@@ -318,11 +338,10 @@ def calculate_moment_magnitude(
             continue
  
         # Window the trace
-        p_window_data, sv_window_data, sh_window_data, p_noise_data, sv_noise_data, sh_noise_data = window_trace(rotated_stream, p_arr_time, s_arr_time)
+        p_window_data, sv_window_data, sh_window_data, p_noise_data, sv_noise_data, sh_noise_data = window_trace(rotated_stream, p_arr_time, s_arr_time, lqt_mode=lqt_mode)
         
         # Check the data quality (SNR must be above or equal to 1)
-        snr_threshold = CONFIG.magnitude.SNR_THRESHOLD
-        if any(trace_snr(data, noise) <= snr_threshold for data, noise in zip ([p_window_data, sv_window_data, sh_window_data], [p_noise_data, sv_noise_data, sh_noise_data])):
+        if any(trace_snr(data, noise) <= CONFIG.magnitude.SNR_THRESHOLD for data, noise in zip ([p_window_data, sv_window_data, sh_window_data], [p_noise_data, sv_noise_data, sh_noise_data])):
             logger.warning(f"Earthquake_{source_id}: SNR below threshold for station {station} to calculate moment magnitude")
             continue
             
